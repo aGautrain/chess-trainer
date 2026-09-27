@@ -37,7 +37,7 @@ body {
 }
 
 main {
-  max-width: 1000px;
+  max-width: 1240px;
   margin: 0 auto;
   padding: 24px 16px;
 }
@@ -247,4 +247,171 @@ button.link {
   padding: 0;
   border: none;
   text-align: left;
+}
+
+button.primary {
+  background: var(--accent);
+  color: var(--panel);
+}
+
+button.small {
+  padding: 2px 8px;
+  font-size: 0.85rem;
+}
+
+button.danger {
+  border-color: var(--bad);
+  color: var(--bad);
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+
+@media (max-width: 1000px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.library {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.library-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.library h2 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.library h3 {
+  margin: 16px 0 4px;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+}
+
+.library ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.library li {
+  border-radius: 8px;
+  padding: 4px;
+}
+
+.library li.selected {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+.library .drill-name {
+  display: block;
+  width: 100%;
+  border: none;
+  padding: 4px;
+  text-align: left;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.drill-meta {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.drill-actions {
+  display: flex;
+  gap: 6px;
+  padding: 0 4px 4px;
+}
+
+.empty {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.warning {
+  margin: 0 0 16px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--bad);
+  color: var(--bad);
+}
+
+.editor {
+  display: flex;
+  flex-direction: column;
+}
+
+.editor label {
+  font-weight: 600;
+  font-size: 0.9rem;
+  margin: 12px 0 4px;
+}
+
+.editor input:not([type='radio']),
+.editor textarea {
+  font: inherit;
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+}
+
+.editor .mono {
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 0.9rem;
+}
+
+.editor [aria-invalid='true'] {
+  border-color: var(--bad);
+}
+
+.field-error {
+  margin: 4px 0 0;
+  color: var(--bad);
+  font-size: 0.9rem;
+}
+
+.editor .side {
+  border: none;
+  padding: 0;
+  margin: 12px 0 16px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+}
+
+.editor .side legend {
+  font-weight: 600;
+  font-size: 0.9rem;
+  padding: 0;
+  margin-bottom: 4px;
+}
+
+.editor .side label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-weight: 400;
 }
