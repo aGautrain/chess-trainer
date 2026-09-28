@@ -52,13 +52,33 @@ function useEvaluation(fen: string): { state: EvalBarState | null; error: boolea
 /** Vertical bar beside the board, filled with white and black in proportion to Stockfish's evaluation. */
 export function EvalBar({ fen, orientation }: { fen: string; orientation: 'white' | 'black' }) {
   const { state, error } = useEvaluation(fen)
-  const whitePercent = state?.whitePercent ?? 50
-  const labelAtBottom = state?.favours === orientation
-  const description = error
+  return <EvalBarView state={state} error={error} orientation={orientation} />
+}
+
+const EQUAL = evalBarState({ kind: 'cp', value: 0 }, 'w')
+
+/** A fixed 0.0 bar, for boards that are not evaluated (the drill editor), so the layout matches the trainer. */
+export function NeutralEvalBar({ orientation }: { orientation: 'white' | 'black' }) {
+  return <EvalBarView state={EQUAL} error={false} orientation={orientation} description="Equal position (not evaluated)" />
+}
+
+function EvalBarView({
+  state,
+  error,
+  orientation,
+  description = error
     ? 'Stockfish evaluation unavailable'
     : state
       ? `Stockfish evaluation: ${state.label} for ${state.favours}`
-      : 'Stockfish is evaluating'
+      : 'Stockfish is evaluating',
+}: {
+  state: EvalBarState | null
+  error: boolean
+  orientation: 'white' | 'black'
+  description?: string
+}) {
+  const whitePercent = state?.whitePercent ?? 50
+  const labelAtBottom = state?.favours === orientation
 
   return (
     <div

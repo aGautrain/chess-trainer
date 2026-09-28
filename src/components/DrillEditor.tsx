@@ -4,6 +4,7 @@ import { DEFAULT_POSITION, validateFen } from 'chess.js'
 import { formatLine } from '../drill/engine'
 import { buildDrill, drillToInput, type DrillInput } from '../drill/importer'
 import type { Drill } from '../drill/types'
+import { NeutralEvalBar } from './EvalBar'
 
 const emptyInput: DrillInput = { name: '', description: '', fen: '', moves: '', playerColor: 'auto' }
 
@@ -51,8 +52,11 @@ export function DrillEditor({ drill, id, onSave, onCancel }: Props) {
 
   return (
     <section className="trainer">
-      <div className="board">
-        <Chessboard options={{ id: `preview-${id}`, position: previewFen, boardOrientation: orientation, allowDragging: false }} />
+      <div className="board-area">
+        <NeutralEvalBar orientation={orientation} />
+        <div className="board">
+          <Chessboard options={{ id: `preview-${id}`, position: previewFen, boardOrientation: orientation, allowDragging: false }} />
+        </div>
       </div>
       <form className="panel editor" onSubmit={submit} noValidate>
         <h2>{drill ? 'Edit drill' : 'New drill'}</h2>
