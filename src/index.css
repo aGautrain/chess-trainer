@@ -42,11 +42,54 @@ main {
   padding: 24px 16px;
 }
 
-h1 {
-  margin: 0 0 4px;
+/* Top bar with the page tabs. */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
 }
 
-header p {
+.topbar-inner {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+
+.brand {
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.tabs {
+  display: flex;
+  gap: 4px;
+}
+
+.tabs a {
+  padding: 14px 12px 12px;
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.tabs a:hover {
+  color: var(--text);
+}
+
+.tabs a[aria-current='page'] {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.intro {
   margin: 0 0 24px;
   color: var(--muted);
 }
@@ -319,9 +362,16 @@ button.danger {
   background: color-mix(in srgb, var(--accent) 14%, transparent);
 }
 
+.drill-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+}
+
 .library .drill-name {
   display: block;
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   border: none;
   padding: 4px;
   text-align: left;
@@ -454,4 +504,99 @@ button.danger {
 
 .setup-actions {
   margin-top: 8px;
+}
+
+button.star {
+  flex: none;
+  display: inline-flex;
+  padding: 4px;
+  border: none;
+  color: var(--muted);
+}
+
+button.star.starred {
+  color: #e8a317;
+}
+
+button.star:hover {
+  color: #e8a317;
+}
+
+/* Library page. */
+.page-head {
+  align-items: flex-start;
+  margin-bottom: 16px;
+}
+
+.page-head h2 {
+  margin: 0 0 4px;
+}
+
+.page-head .description {
+  margin: 0;
+}
+
+.drill-cards {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+.drill-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  transition: border-color 0.15s;
+}
+
+.drill-card:hover {
+  border-color: var(--accent);
+}
+
+.drill-card-open {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  padding: 16px 48px 12px 16px;
+  border: none;
+  border-radius: 12px;
+  text-align: left;
+  color: var(--text);
+}
+
+.drill-card-name {
+  font-weight: 600;
+  font-size: 1.05rem;
+  overflow-wrap: anywhere;
+}
+
+.drill-card-description {
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.drill-card-source {
+  margin-top: 4px;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+}
+
+.drill-card-star {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+}
+
+.drill-card .drill-actions {
+  padding: 0 16px 16px;
 }
