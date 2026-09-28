@@ -428,7 +428,7 @@ button.danger {
   margin: 12px 0 4px;
 }
 
-.editor input:not([type='radio']),
+.editor input:not([type='radio']):not([type='checkbox']),
 .editor textarea {
   font: inherit;
   width: 100%;
@@ -480,6 +480,19 @@ button.danger {
 
 .editor .mode {
   margin-top: 4px;
+}
+
+.editor .check {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 6px;
+  margin: 0 0 8px;
+  font-weight: 400;
+}
+
+.editor .check input {
+  margin: 0;
 }
 
 .editor .hint {

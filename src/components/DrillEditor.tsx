@@ -92,6 +92,14 @@ export function DrillEditor({ drill, id, onSave, onCancel }: Props) {
           <p className="hint">{MODES.find((m) => m.mode === input.mode)?.hint}</p>
         </fieldset>
 
+        {engineMode && (
+          <label className="check">
+            <input type="checkbox" checked={input.randomize === true} onChange={(e) => set('randomize', e.target.checked)} />
+            Randomize the position
+            <span className="hint">Each start moves every piece to a random square, keeping about the same evaluation.</span>
+          </label>
+        )}
+
         <label htmlFor={`${fieldId}-name`}>Name</label>
         <input
           id={`${fieldId}-name`}

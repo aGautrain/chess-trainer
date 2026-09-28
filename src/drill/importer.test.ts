@@ -116,4 +116,11 @@ describe('buildDrill for engine drills', () => {
     if (!result.ok) throw new Error(result.error)
     expect(buildDrill(drillToInput(result.drill), 'x')).toEqual(result)
   })
+
+  it('keeps the randomize choice through the editor', () => {
+    const result = buildDrill({ ...engine, fen: kqk, randomize: true }, 'x')
+    if (!result.ok) throw new Error(result.error)
+    expect(result.drill).toMatchObject({ randomize: true })
+    expect(buildDrill(drillToInput(result.drill), 'x')).toEqual(result)
+  })
 })

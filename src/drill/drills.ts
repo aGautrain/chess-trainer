@@ -11,9 +11,9 @@ export const italianGame: LineDrill = {
   line: ['Bc4', 'Bc5', 'c3', 'Nf6', 'd4', 'exd4', 'cxd4', 'Bb4+', 'Bd2', 'Bxd2+', 'Nbxd2', 'd5', 'exd5', 'Nxd5'],
 }
 
-/** A classic basic mate: White has the material to force checkmate against a bare king, Stockfish defends. */
+/** A classic basic mate: White has the material to force checkmate against a bare king, Stockfish defends. The pieces start on random squares. */
 function mateDrill(id: string, name: string, description: string, fen: string): EngineDrill {
-  return { id, mode: 'engine', name, description, fen, playerColor: 'white', goal: { kind: 'checkmate' } }
+  return { id, mode: 'engine', name, description, fen, playerColor: 'white', goal: { kind: 'checkmate' }, randomize: true }
 }
 
 export const mateDrills: EngineDrill[] = [

@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { Chessboard, type PieceDropHandlerArgs, type PieceHandlerArgs, type SquareHandlerArgs } from 'react-chessboard'
 import { formatMoves, sideToMove } from '../drill/engine'
 import { goalLabel, goalStatus } from '../drill/goals'
+import { randomizePosition } from '../drill/randomize'
 import { legalTargets } from '../drill/legalMoves'
 import type { EngineDrill } from '../drill/types'
 import { playUci } from '../engine/moves'
@@ -18,6 +19,8 @@ import { EvalBar } from './EvalBar'
 const ENGINE_MOVETIME_MS = 1000
 /** Think time for the hint. */
 const HINT_MOVETIME_MS = 500
+/** Search depth used to compare a shuffled position with the original. */
+const SHUFFLE_DEPTH = 10
 
 /** One quiet line with the engine and the settings its moves are searched with. */
 function engineParams(identity: EngineIdentity | null, depth: number | null): string {
@@ -34,6 +37,10 @@ type Feedback = { tone: 'info' | 'good' | 'bad' | 'done'; text: string }
 
 /** Plays a position out against Stockfish's best moves until the drill's goal is met or can no longer be. */
 export function EngineDrillTrainer({ drill }: { drill: EngineDrill }) {
+  /** The position this run starts from: the drill's own, or a shuffle of it. Null while shuffling. */
+  const [startFen, setStartFen] = useState<string | null>(drill.randomize ? null : drill.fen)
+  /** Bumped to ask for a new shuffle. */
+  const [shuffle, setShuffle] = useState(0)
   /** Moves played from the drill position, in SAN. */
   const [moves, setMoves] = useState<string[]>([])
   /** The square of the piece Stockfish would move, for the position it was asked about. */
@@ -51,17 +58,18 @@ export function EngineDrillTrainer({ drill }: { drill: EngineDrill }) {
   const reviews = useReviews()
   const now = useNow()
 
+  const shuffling = startFen === null
   const game = useMemo(() => {
-    const g = new Chess(drill.fen)
+    const g = new Chess(startFen ?? drill.fen)
     for (const san of moves) g.move(san)
     return g
-  }, [drill.fen, moves])
+  }, [startFen, drill.fen, moves])
   const fen = game.fen()
   const status = useMemo(() => goalStatus(game, drill.playerColor, drill.goal), [game, drill.playerColor, drill.goal])
-  const over = status.state !== 'playing'
+  const over = !shuffling && status.state !== 'playing'
   const lastMove = moves.length ? (game.history({ verbose: true }).at(-1) ?? null) : null
   const playerTurn = sideToMove(fen) === drill.playerColor
-  const playerToMove = !over && playerTurn
+  const playerToMove = !shuffling && !over && playerTurn
   const hintSquare = hint?.fen === fen ? hint.square : null
   const targets = useMemo(() => (selected && playerToMove ? legalTargets(fen, selected) : []), [fen, selected, playerToMove])
 
@@ -76,9 +84,32 @@ export function EngineDrillTrainer({ drill }: { drill: EngineDrill }) {
     }
   }, [])
 
+  // A randomized drill starts from a shuffle of its position that Stockfish rates about the same.
+  useEffect(() => {
+    if (!drill.randomize) return
+    let cancelled = false
+    const engine = getEngine()
+    const evaluate = async (candidate: string) => {
+      // Stop searching once this shuffle is no longer wanted (restart or unmount).
+      if (cancelled) throw new Error('cancelled')
+      return (await engine.search(candidate, { depth: SHUFFLE_DEPTH })).score
+    }
+    randomizePosition(drill.fen, drill.playerColor, evaluate)
+      .then(({ fen: shuffled }) => !cancelled && setStartFen(shuffled))
+      // Without Stockfish the shuffle cannot be checked; the drill cannot be played either, so show that error.
+      .catch(() => {
+        if (cancelled) return
+        setStartFen(drill.fen)
+        setEngineError(true)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [drill.randomize, drill.fen, drill.playerColor, shuffle])
+
   // Stockfish answers with its best move.
   useEffect(() => {
-    if (over || playerTurn || engineError) return
+    if (shuffling || over || playerTurn || engineError) return
     const runId = run.current
     let cancelled = false
     getEngine()
@@ -93,7 +124,7 @@ export function EngineDrillTrainer({ drill }: { drill: EngineDrill }) {
     return () => {
       cancelled = true
     }
-  }, [over, playerTurn, engineError, fen])
+  }, [shuffling, over, playerTurn, engineError, fen])
 
   // Once the drill ends, schedule its next review: a missed goal counts as a failed run.
   useEffect(() => {
@@ -156,10 +187,16 @@ export function EngineDrillTrainer({ drill }: { drill: EngineDrill }) {
     setSelected(null)
     setEngineError(false)
     setLastDepth(null)
+    if (drill.randomize) {
+      setStartFen(null)
+      setShuffle((n) => n + 1)
+    }
   }
 
   let feedback: Feedback
-  if (status.state !== 'playing') {
+  if (shuffling) {
+    feedback = { tone: 'info', text: 'Shuffling the pieces…' }
+  } else if (status.state !== 'playing') {
     const card = reviews.get(drill.id)
     const next = card ? ` Next review ${formatDue(card.due, now)}.` : ''
     feedback = { tone: status.state === 'won' ? 'done' : 'bad', text: status.reason + next }
@@ -215,13 +252,19 @@ export function EngineDrillTrainer({ drill }: { drill: EngineDrill }) {
         <dl className="stats">
           <dt>Goal</dt>
           <dd data-testid="goal">{goalLabel(drill.goal)}</dd>
+          {drill.randomize && (
+            <>
+              <dt>Position</dt>
+              <dd>Randomized</dd>
+            </>
+          )}
           <dt>Opponent</dt>
           <dd>Stockfish, best moves</dd>
           <dt>Hints</dt>
           <dd data-testid="hints">{hintsUsed}</dd>
         </dl>
         <p className="moves" data-testid="moves">
-          {formatMoves(drill.fen, moves) || 'No moves played yet.'}
+          {formatMoves(startFen ?? drill.fen, moves) || 'No moves played yet.'}
         </p>
         <div className="actions">
           <button type="button" onClick={showHint} disabled={!playerToMove || engineError || hint?.fen === fen}>

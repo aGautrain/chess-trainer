@@ -1,6 +1,6 @@
 import { validateDrill } from './engine'
 import { GOAL_PIECES } from './goals'
-import type { Drill, EngineGoal, GoalPiece, LineDrill } from './types'
+import type { Drill, EngineDrill, EngineGoal, GoalPiece, LineDrill } from './types'
 
 export const STORAGE_KEY = 'chess-trainer.customDrills.v1'
 
@@ -33,7 +33,12 @@ function toDrill(value: unknown): Drill | null {
     typeof d.fen === 'string' &&
     (d.playerColor === 'white' || d.playerColor === 'black')
   if (!common) return null
-  if (d.mode === 'engine') return isGoal(d.goal) ? (d as unknown as Drill) : null
+  if (d.mode === 'engine') {
+    if (!isGoal(d.goal)) return null
+    // Drills saved before randomizing existed are not randomized.
+    const { randomize, ...rest } = d
+    return { ...(rest as unknown as EngineDrill), ...(randomize === true ? { randomize: true } : {}) }
+  }
   if (d.mode !== undefined && d.mode !== 'line') return null
   if (!Array.isArray(d.line) || !d.line.every((m) => typeof m === 'string')) return null
   return { ...(d as unknown as LineDrill), mode: 'line' }

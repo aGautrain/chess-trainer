@@ -126,7 +126,7 @@ export default function App() {
               ) : (
                 // Keyed by content so switching or editing a drill starts it fresh.
                 selected.mode === 'engine' ? (
-                  <EngineDrillTrainer key={`${selected.id}:${selected.fen}:${selected.playerColor}:${JSON.stringify(selected.goal)}`} drill={selected} />
+                  <EngineDrillTrainer key={`${selected.id}:${selected.fen}:${selected.playerColor}:${JSON.stringify(selected.goal)}:${selected.randomize === true}`} drill={selected} />
                 ) : (
                   <DrillTrainer key={`${selected.id}:${selected.fen}:${selected.line.join(' ')}`} drill={selected} />
                 )
