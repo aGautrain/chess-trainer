@@ -643,7 +643,34 @@ button.star:hover {
   margin-left: 0;
 }
 
+.board-frame {
+  position: relative;
+}
+
+/* The end-of-drill card, over the board. */
+.result-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: color-mix(in srgb, var(--bg) 45%, transparent);
+}
+
+.result {
+  position: relative;
+  width: min(300px, 100%);
+  padding: 20px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  box-shadow: 0 12px 32px rgb(0 0 0 / 0.3);
+}
+
 .result h2 {
+  margin: 0 0 4px;
   font-size: 1.6rem;
 }
 
@@ -653,6 +680,16 @@ button.star:hover {
 
 .result-lost h2 {
   color: var(--bad);
+}
+
+.result-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: inline-flex;
+  padding: 4px;
+  border: none;
+  color: var(--muted);
 }
 
 .retry {
