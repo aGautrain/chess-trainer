@@ -20,7 +20,12 @@ export default function App() {
   const [favorites, setFavorites] = useState<string[]>(
     () => loadFavorites() ?? [...builtInDrills, ...customDrills].map((d) => d.id),
   )
-  const [selectedId, setSelectedId] = useState<string>(builtInDrills[0].id)
+  // Open on the first drill of My drills, falling back to the first built-in one.
+  const [selectedId, setSelectedId] = useState<string>(
+    () =>
+      favorites.find((id) => [...builtInDrills, ...customDrills].some((d) => d.id === id)) ??
+      builtInDrills[0].id,
+  )
   const [view, setView] = useState<View>({ kind: 'play' })
   const [saveFailed, setSaveFailed] = useState(false)
   const [page, goTo] = useHashPage()
@@ -68,7 +73,7 @@ export default function App() {
     updateCustom(customDrills.filter((d) => d.id !== drill.id))
     if (favorites.includes(drill.id)) updateFavorites(favorites.filter((id) => id !== drill.id))
     forget(drill.id)
-    if (selectedId === drill.id) setSelectedId(builtInDrills[0].id)
+    if (selectedId === drill.id) setSelectedId((myDrills.find((d) => d.id !== drill.id) ?? builtInDrills[0]).id)
     if (view.kind === 'edit' && view.id === drill.id) setView({ kind: 'play' })
   }
 
