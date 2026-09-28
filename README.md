@@ -63,7 +63,7 @@ Click **New drill** to create your own:
 - **Line to drill**: PGN movetext (`1. e4 c5 2. Nf3 d6`), bare SAN (`e4 c5 Nf3`) or a pasted PGN. Comments, NAGs and variations are ignored; only the main line is kept.
 - **Play as**: White, Black, or the side to move.
 
-The position and every move are validated with chess.js as you type, with the first problem shown under its field. Saved drills are stored in your browser's `localStorage` (key `chess-trainer.customDrills.v1`), listed under **My drills**, and can be edited or deleted there. They stay on this device and browser only. Parsing lives in `src/drill/importer.ts` and storage in `src/drill/storage.ts`.
+The position and every move are validated with chess.js as you type, with the first problem shown under its field. Saved drills are stored in your browser's `localStorage` (key `chess-trainer.customDrills.v1`), starred into **My drills** automatically, and can be edited or deleted from My drills or the **Library** page. The Library lists every drill; star one to keep it in My drills (stars are saved under `chess-trainer.favorites.v1`). They stay on this device and browser only. Parsing lives in `src/drill/importer.ts` and storage in `src/drill/storage.ts`.
 
 ## Deploying to GitHub Pages
 
