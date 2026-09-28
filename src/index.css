@@ -612,3 +612,13 @@ button.star:hover {
 .drill-card .drill-actions {
   padding: 0 16px 16px;
 }
+
+/* Stockfish's settings under the engine drill board: readable on purpose, but only just. */
+.engine-params {
+  margin: 4px 0 0;
+  font-size: 0.65rem;
+  line-height: 1.3;
+  color: var(--muted);
+  opacity: 0.6;
+  text-align: right;
+}

@@ -64,3 +64,24 @@ export function formatScore(score: Score): string {
   const pawns = score.value / 100
   return `${pawns >= 0 ? '+' : ''}${pawns.toFixed(2)}`
 }
+
+/** What the engine says about itself during the UCI handshake. */
+export interface EngineIdentity {
+  /** From `id name`, e.g. "Stockfish 17.1 Lite". */
+  name: string
+  /** Each option's value, starting from the default the engine announced. */
+  options: Record<string, string>
+}
+
+/** Reads `id name` and `option name ... default ...` lines from the handshake output. */
+export function parseIdentity(lines: string[]): EngineIdentity {
+  let name = 'Unknown engine'
+  const options: Record<string, string> = {}
+  for (const line of lines) {
+    const id = /^id name (.+)$/.exec(line)
+    if (id) name = id[1].trim()
+    const option = /^option name (.+?) type \S+(?: default (\S*))?/.exec(line)
+    if (option && option[2] !== undefined) options[option[1]] = option[2]
+  }
+  return { name, options }
+}
