@@ -125,21 +125,23 @@ export default function App() {
                 onNew={() => edit()}
                 onBrowse={() => goTo('library')}
               />
-              {view.kind === 'edit' ? (
-                <DrillEditor key={view.id} drill={view.drill} id={view.id} onSave={save} onCancel={() => setView({ kind: 'play' })} />
-              ) : (
-                // Keyed by content so switching or editing a drill starts it fresh.
-                selected.mode === 'engine' ? (
-                  <EngineDrillTrainer key={`${selected.id}:${selected.fen}:${selected.playerColor}:${JSON.stringify(selected.goal)}:${selected.randomize === true}`} 
-                    drill={selected}
-                    progress={progressOf(selected)}
-                    onSolved={(moves, target) => recordResult(selected, moves, target)}
-                    onTarget={(target) => recordTarget(selected, target)}
-                  />
+              <div className="stage">
+                {view.kind === 'edit' ? (
+                  <DrillEditor key={view.id} drill={view.drill} id={view.id} onSave={save} onCancel={() => setView({ kind: 'play' })} />
                 ) : (
-                  <DrillTrainer key={`${selected.id}:${selected.fen}:${selected.line.join(' ')}`} drill={selected} />
-                )
-              )}
+                  // Keyed by content so switching or editing a drill starts it fresh.
+                  selected.mode === 'engine' ? (
+                    <EngineDrillTrainer key={`${selected.id}:${selected.fen}:${selected.playerColor}:${JSON.stringify(selected.goal)}:${selected.randomize === true}`} 
+                      drill={selected}
+                      progress={progressOf(selected)}
+                      onSolved={(moves, target) => recordResult(selected, moves, target)}
+                      onTarget={(target) => recordTarget(selected, target)}
+                    />
+                  ) : (
+                    <DrillTrainer key={`${selected.id}:${selected.fen}:${selected.line.join(' ')}`} drill={selected} />
+                  )
+                )}
+              </div>
             </div>
           </>
         )}

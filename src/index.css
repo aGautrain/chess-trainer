@@ -94,16 +94,24 @@ main {
   color: var(--muted);
 }
 
+/* The trainer or editor beside My drills; the board and its panel sit side by side only when this is wide enough. */
+.stage {
+  container-type: inline-size;
+  min-width: 0;
+}
+
+/* The eval bar and its gap (36px) plus a board that never gets taller than the screen. */
 .trainer {
+  --board-area: min(596px, calc(100svh - 36px));
   display: grid;
-  grid-template-columns: minmax(0, 596px) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 24px;
   align-items: start;
 }
 
-@media (max-width: 800px) {
+@container (min-width: 620px) {
   .trainer {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, var(--board-area)) minmax(240px, 1fr);
   }
 }
 
@@ -111,6 +119,12 @@ main {
   display: flex;
   gap: 8px;
   max-width: 596px;
+}
+
+@container (min-width: 620px) {
+  .board-area {
+    max-width: var(--board-area);
+  }
 }
 
 .board {
@@ -217,6 +231,7 @@ main {
 }
 
 .stats dt {
+  white-space: nowrap;
   color: var(--muted);
 }
 
@@ -234,7 +249,12 @@ main {
 
 .actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
+}
+
+.actions button {
+  white-space: nowrap;
 }
 
 button {
@@ -415,6 +435,7 @@ button.danger {
 }
 
 .editor .side {
+  min-width: 0;
   border: none;
   padding: 0;
   margin: 12px 0 16px;
@@ -737,4 +758,113 @@ button.star:hover {
   width: 32px;
   height: 32px;
   padding: 4px;
+}
+
+/* Narrow screens: My drills becomes a row of cards to swipe through, so the board shows sooner. */
+@media (max-width: 1000px) {
+  main {
+    padding: 16px 12px;
+  }
+
+  .intro {
+    margin-bottom: 16px;
+  }
+
+  .library {
+    padding: 12px;
+  }
+
+  .library ul {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    scroll-snap-type: x proximity;
+    margin: 0 -12px;
+    padding: 0 12px 4px;
+  }
+
+  .library li {
+    flex: none;
+    width: min(220px, 70%);
+    border: 1px solid var(--border);
+    scroll-snap-align: start;
+  }
+
+  .library li.selected {
+    border-color: var(--accent);
+  }
+
+  .panel {
+    padding: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .topbar-inner {
+    gap: 12px;
+    padding: 0 12px;
+  }
+
+  .tabs a {
+    padding-inline: 10px;
+  }
+
+  /* The result card has to fit over a small board. */
+  .result-backdrop {
+    padding: 8px;
+    overflow-y: auto;
+    align-items: safe center;
+  }
+
+  .result {
+    padding: 14px 16px;
+  }
+
+  .result h2 {
+    font-size: 2rem;
+  }
+
+  .result .description {
+    margin-bottom: 8px;
+  }
+
+  .result .stats {
+    margin-bottom: 8px;
+  }
+}
+
+/* Fingers need bigger targets than a mouse pointer. */
+@media (pointer: coarse) {
+  .history-nav .icon-button,
+  .icon-button {
+    width: 44px;
+    height: 44px;
+  }
+
+  .moves {
+    line-height: 2;
+  }
+
+  .moves .move {
+    padding: 4px 6px;
+  }
+
+  button.small {
+    padding: 8px 12px;
+  }
+
+  button.star,
+  .result-close {
+    padding: 10px;
+  }
+
+  .editor input[type='radio'],
+  .editor input[type='checkbox'] {
+    width: 20px;
+    height: 20px;
+  }
+
+  .editor .side label {
+    min-height: 36px;
+  }
 }
