@@ -1,5 +1,6 @@
 import { validateDrill } from './engine'
-import type { Drill } from './types'
+import { GOAL_PIECES } from './goals'
+import type { Drill, EngineGoal, GoalPiece, LineDrill } from './types'
 
 export const STORAGE_KEY = 'chess-trainer.customDrills.v1'
 
@@ -14,18 +15,28 @@ function defaultStore(): KeyValueStore | null {
   }
 }
 
-function isDrill(value: unknown): value is Drill {
+function isGoal(value: unknown): value is EngineGoal {
   if (typeof value !== 'object' || value === null) return false
+  const g = value as Record<string, unknown>
+  if (g.kind === 'checkmate' || g.kind === 'draw') return true
+  return g.kind === 'win-piece' && GOAL_PIECES.includes(g.piece as GoalPiece)
+}
+
+/** A saved drill, or null when the entry is malformed. Drills saved before engine drills existed have no mode and are line drills. */
+function toDrill(value: unknown): Drill | null {
+  if (typeof value !== 'object' || value === null) return null
   const d = value as Record<string, unknown>
-  return (
+  const common =
     typeof d.id === 'string' &&
     typeof d.name === 'string' &&
     typeof d.description === 'string' &&
     typeof d.fen === 'string' &&
-    (d.playerColor === 'white' || d.playerColor === 'black') &&
-    Array.isArray(d.line) &&
-    d.line.every((m) => typeof m === 'string')
-  )
+    (d.playerColor === 'white' || d.playerColor === 'black')
+  if (!common) return null
+  if (d.mode === 'engine') return isGoal(d.goal) ? (d as unknown as Drill) : null
+  if (d.mode !== undefined && d.mode !== 'line') return null
+  if (!Array.isArray(d.line) || !d.line.every((m) => typeof m === 'string')) return null
+  return { ...(d as unknown as LineDrill), mode: 'line' }
 }
 
 /** Reads the user's saved drills, skipping any entry that is malformed or no longer legal. */
@@ -44,13 +55,14 @@ export function loadCustomDrills(store: KeyValueStore | null = defaultStore()): 
     return []
   }
   if (!Array.isArray(parsed)) return []
-  return parsed.filter((d): d is Drill => {
-    if (!isDrill(d)) return false
+  return parsed.flatMap((entry) => {
+    const d = toDrill(entry)
+    if (!d) return []
     try {
       validateDrill(d)
-      return true
+      return [d]
     } catch {
-      return false
+      return []
     }
   })
 }

@@ -34,6 +34,25 @@ describe('custom drill storage', () => {
     expect(loadCustomDrills(store)).toEqual([good])
   })
 
+  it('loads drills saved before modes existed as line drills', () => {
+    const { mode: _mode, ...legacy } = { ...italianGame, id: 'custom-old' }
+    expect(loadCustomDrills(memoryStore(JSON.stringify([legacy])))).toEqual([{ ...legacy, mode: 'line' }])
+  })
+
+  it('keeps engine drills and drops ones with an unknown goal', () => {
+    const engine = {
+      id: 'custom-engine',
+      mode: 'engine',
+      name: 'KQ vs K',
+      description: '',
+      fen: '4k3/8/8/8/8/8/8/3QK3 w - - 0 1',
+      playerColor: 'white',
+      goal: { kind: 'checkmate' },
+    }
+    const badGoal = { ...engine, id: 'custom-bad-goal', goal: { kind: 'win-piece', piece: 'k' } }
+    expect(loadCustomDrills(memoryStore(JSON.stringify([engine, badGoal])))).toEqual([engine])
+  })
+
   it('reports a failed save', () => {
     const store = { getItem: () => null, setItem: () => { throw new Error('QuotaExceededError') } }
     expect(saveCustomDrills([italianGame], store)).toBe(false)

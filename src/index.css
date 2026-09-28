@@ -415,3 +415,43 @@ button.danger {
   margin: 0;
   font-weight: 400;
 }
+
+.editor .mode {
+  margin-top: 4px;
+}
+
+.editor .hint {
+  flex-basis: 100%;
+  margin: 2px 0 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.editor select {
+  font: inherit;
+  padding: 4px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+}
+
+.editor .goal[aria-invalid='true'] legend {
+  color: var(--bad);
+}
+
+/* Trays of pieces to drag onto the engine drill board. */
+.spare-pieces {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  margin: 4px 0;
+}
+
+.spare-piece {
+  aspect-ratio: 1;
+  cursor: grab;
+}
+
+.setup-actions {
+  margin-top: 8px;
+}

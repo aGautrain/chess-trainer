@@ -1,5 +1,6 @@
 import { Chess, type Move } from 'chess.js'
-import type { Color, Drill } from './types'
+import { goalError } from './goals'
+import type { Color, Drill, LineDrill } from './types'
 
 export interface MoveAttempt {
   from: string
@@ -13,14 +14,19 @@ export type AttemptResult =
   | { kind: 'correct'; san: string; fen: string }
 
 /** Replays the first `ply` moves of the drill line and returns the resulting game. */
-export function positionAt(drill: Drill, ply: number): Chess {
+export function positionAt(drill: LineDrill, ply: number): Chess {
   const game = new Chess(drill.fen)
   for (const san of drill.line.slice(0, ply)) game.move(san)
   return game
 }
 
-/** Throws if the drill's FEN or any move of its line is invalid. */
+/** Throws if the drill's FEN, any move of its line, or its engine goal is invalid. */
 export function validateDrill(drill: Drill): void {
+  if (drill.mode === 'engine') {
+    const error = goalError(drill.fen, drill.playerColor, drill.goal)
+    if (error) throw new Error(`Drill "${drill.id}": ${error.error}`)
+    return
+  }
   const game = new Chess(drill.fen)
   drill.line.forEach((san, i) => {
     try {
@@ -36,14 +42,14 @@ export function sideToMove(fen: string): Color {
 }
 
 /** The expected move at `ply`, or null when the line is finished. */
-export function expectedMove(drill: Drill, ply: number): Move | null {
+export function expectedMove(drill: LineDrill, ply: number): Move | null {
   const san = drill.line[ply]
   if (san === undefined) return null
   return positionAt(drill, ply).move(san)
 }
 
 /** Checks a move the user tried at `ply` against the drill line. */
-export function attemptMove(drill: Drill, ply: number, attempt: MoveAttempt): AttemptResult {
+export function attemptMove(drill: LineDrill, ply: number, attempt: MoveAttempt): AttemptResult {
   const game = positionAt(drill, ply)
   const expected = expectedMove(drill, ply)
   // Promote to whatever the line expects when the squares match, otherwise a queen.
@@ -63,12 +69,17 @@ export function attemptMove(drill: Drill, ply: number, attempt: MoveAttempt): At
 }
 
 /** Formats the line up to `ply` as numbered move text, e.g. "3. Bc4 Bc5 4. c3". */
-export function formatLine(drill: Drill, ply: number): string {
-  const start = new Chess(drill.fen)
+export function formatLine(drill: LineDrill, ply: number): string {
+  return formatMoves(drill.fen, drill.line.slice(0, ply))
+}
+
+/** Formats SAN moves played from `fen` as numbered move text. */
+export function formatMoves(fen: string, moves: string[]): string {
+  const start = new Chess(fen)
   let moveNumber = start.moveNumber()
   let white = start.turn() === 'w'
   const parts: string[] = []
-  drill.line.slice(0, ply).forEach((san, i) => {
+  moves.forEach((san, i) => {
     if (white) parts.push(`${moveNumber}. ${san}`)
     else {
       parts.push(i === 0 ? `${moveNumber}... ${san}` : san)

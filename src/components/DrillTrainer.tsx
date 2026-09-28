@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { Chessboard, type PieceDropHandlerArgs, type PieceHandlerArgs, type SquareHandlerArgs } from 'react-chessboard'
 import { attemptMove, expectedMove, formatLine, positionAt, sideToMove } from '../drill/engine'
 import { legalTargets } from '../drill/legalMoves'
-import type { Drill } from '../drill/types'
+import type { LineDrill } from '../drill/types'
 import { judgeMove, type MoveJudgement } from '../engine/judge'
 import { playUci, uciToSan } from '../engine/moves'
 import { getEngine } from '../engine/stockfish'
@@ -11,6 +11,7 @@ import { formatScore } from '../engine/uci'
 import { formatDue } from '../review/format'
 import { gradeFromRun } from '../review/scheduler'
 import { useNow, useReviews } from '../review/useReviews'
+import { captureRingStyle, hintStyle, lastMoveStyle, moveDotStyle, selectedStyle } from './boardStyles'
 import { EvalBar } from './EvalBar'
 
 const OPPONENT_DELAY_MS = 400
@@ -18,18 +19,6 @@ const OPPONENT_DELAY_MS = 400
 const OPPONENT_MOVETIME_MS = 500
 
 type Feedback = { tone: 'info' | 'good' | 'bad' | 'done'; text: string }
-
-const lastMoveStyle: CSSProperties = { background: 'rgba(255, 214, 0, 0.45)' }
-const hintStyle: CSSProperties = { boxShadow: 'inset 0 0 0 4px rgba(40, 140, 255, 0.85)' }
-const selectedStyle: CSSProperties = { background: 'rgba(20, 85, 30, 0.5)' }
-const moveDotStyle: CSSProperties = {
-  background: 'radial-gradient(circle, rgba(20, 85, 30, 0.5) 22%, transparent 24%)',
-  cursor: 'pointer',
-}
-const captureRingStyle: CSSProperties = {
-  background: 'radial-gradient(circle, transparent 72%, rgba(20, 85, 30, 0.5) 74%)',
-  cursor: 'pointer',
-}
 
 const VERDICT_TEXT: Record<MoveJudgement['verdict'], string> = {
   best: 'the engine move',
@@ -46,7 +35,7 @@ function describe(san: string, judgement: MoveJudgement, fenBefore: string): str
   return `${text}; Stockfish prefers ${uciToSan(fenBefore, judgement.bestMove)}.`
 }
 
-export function DrillTrainer({ drill }: { drill: Drill }) {
+export function DrillTrainer({ drill }: { drill: LineDrill }) {
   const [ply, setPly] = useState(0)
   const [mistakes, setMistakes] = useState(0)
   const [hint, setHint] = useState(false)

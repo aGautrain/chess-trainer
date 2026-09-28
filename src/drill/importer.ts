@@ -1,6 +1,7 @@
 import { Chess, DEFAULT_POSITION, validateFen } from 'chess.js'
 import { formatLine, sideToMove } from './engine'
-import type { Color, Drill } from './types'
+import { goalError } from './goals'
+import type { Color, Drill, DrillMode, EngineGoal } from './types'
 
 /** Raw values from the drill editor form. */
 export interface DrillInput {
@@ -12,9 +13,13 @@ export interface DrillInput {
   moves: string
   /** The side the user plays, or 'auto' for the side to move in the starting position. */
   playerColor: Color | 'auto'
+  /** Line drill (default) or engine drill. */
+  mode?: DrillMode
+  /** When an engine drill is won; ignored for line drills. */
+  goal?: EngineGoal
 }
 
-export type DrillField = 'name' | 'fen' | 'moves'
+export type DrillField = 'name' | 'fen' | 'moves' | 'goal'
 
 export type BuildResult = { ok: true; drill: Drill } | { ok: false; field: DrillField; error: string }
 
@@ -24,6 +29,7 @@ function fail(field: DrillField, error: string): BuildResult {
 
 /** Parses and validates editor input into a drill. Checks the position and line errors before the name. */
 export function buildDrill(input: DrillInput, id: string): BuildResult {
+  if (input.mode === 'engine') return buildEngineDrill(input, id)
   const fen = input.fen.trim()
   if (fen) {
     const check = validateFen(fen)
@@ -59,16 +65,35 @@ export function buildDrill(input: DrillInput, id: string): BuildResult {
   const name = input.name.trim()
   if (!name) return fail('name', 'Give the drill a name.')
 
-  return { ok: true, drill: { id, name, description: input.description.trim(), fen: startFen, playerColor, line } }
+  return { ok: true, drill: { id, mode: 'line', name, description: input.description.trim(), fen: startFen, playerColor, line } }
+}
+
+/** An engine drill needs a playable position and a goal the opponent's pieces allow; the moves field is not used. */
+function buildEngineDrill(input: DrillInput, id: string): BuildResult {
+  const fen = input.fen.trim() || DEFAULT_POSITION
+  const goal: EngineGoal = input.goal ?? { kind: 'checkmate' }
+  const turn = /^\S+\s+b\b/.test(fen) ? 'black' : 'white'
+  const playerColor = input.playerColor === 'auto' ? turn : input.playerColor
+  const problem = goalError(fen, playerColor, goal)
+  if (problem) return fail(problem.field, problem.field === 'fen' ? `Invalid position: ${problem.error}` : problem.error)
+
+  const name = input.name.trim()
+  if (!name) return fail('name', 'Give the drill a name.')
+
+  return {
+    ok: true,
+    drill: { id, mode: 'engine', name, description: input.description.trim(), fen: new Chess(fen).fen(), playerColor, goal },
+  }
 }
 
 /** Editor values for an existing drill, so it can be edited and saved again. */
 export function drillToInput(drill: Drill): DrillInput {
+  const common = { name: drill.name, description: drill.description, playerColor: drill.playerColor }
+  if (drill.mode === 'engine') return { ...common, mode: 'engine', fen: drill.fen, moves: '', goal: drill.goal }
   return {
-    name: drill.name,
-    description: drill.description,
+    ...common,
+    mode: 'line',
     fen: drill.fen === DEFAULT_POSITION ? '' : drill.fen,
     moves: formatLine(drill, drill.line.length),
-    playerColor: drill.playerColor,
   }
 }
