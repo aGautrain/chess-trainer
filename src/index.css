@@ -711,3 +711,30 @@ button.star:hover {
   width: 100%;
   margin-top: 8px;
 }
+
+/* The move list: each move steps the board to it, the shown one is highlighted. */
+.moves .move {
+  padding: 0 2px;
+  border: none;
+  border-radius: 4px;
+  font: inherit;
+  color: inherit;
+  background: transparent;
+}
+
+.moves .move[aria-current] {
+  background: var(--accent);
+  color: var(--panel);
+}
+
+.history-nav {
+  display: flex;
+  gap: 4px;
+  margin: -8px 0 16px;
+}
+
+.history-nav .icon-button {
+  width: 32px;
+  height: 32px;
+  padding: 4px;
+}
