@@ -328,12 +328,6 @@ button.danger {
   background: color-mix(in srgb, var(--accent) 14%, transparent);
 }
 
-.drill-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 4px;
-}
-
 .library .drill-name {
   display: block;
   flex: 1;

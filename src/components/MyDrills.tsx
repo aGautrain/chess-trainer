@@ -1,24 +1,17 @@
-import type { DrillProgress } from '../drill/progress'
 import type { Drill } from '../drill/types'
 import { drillMeta } from './drillMeta'
-import { ProgressTag } from './ProgressTag'
-import { StarButton } from './StarButton'
 
 interface Props {
   /** The starred drills, in the order they were starred. */
   drills: Drill[]
   selectedId: string | null
-  isCustom: (drill: Drill) => boolean
-  progressOf: (drill: Drill) => DrillProgress | null
   onSelect: (drill: Drill) => void
-  onUnstar: (drill: Drill) => void
   onNew: () => void
-  onEdit: (drill: Drill) => void
-  onDelete: (drill: Drill) => void
   onBrowse: () => void
 }
 
-export function MyDrills({ drills, selectedId, isCustom, progressOf, onSelect, onUnstar, onNew, onEdit, onDelete, onBrowse }: Props) {
+/** The starred drills to pick from while training. Starring, editing and deleting happen in the Library. */
+export function MyDrills({ drills, selectedId, onSelect, onNew, onBrowse }: Props) {
   return (
     <nav className="library" aria-label="My drills">
       {drills.length === 0 ? (
@@ -27,17 +20,10 @@ export function MyDrills({ drills, selectedId, isCustom, progressOf, onSelect, o
         <ul data-testid="my-drills">
           {drills.map((drill) => (
             <li key={drill.id} className={drill.id === selectedId ? 'selected' : undefined}>
-              <div className="drill-row">
-                <button type="button" className="drill-name" onClick={() => onSelect(drill)} aria-current={drill.id === selectedId}>
-                  {drill.name}
-                  <span className="drill-meta">
-                    {drillMeta(drill)}
-                    <ProgressTag progress={progressOf(drill)} />
-                  </span>
-                </button>
-                <StarButton name={drill.name} starred onToggle={() => onUnstar(drill)} />
-              </div>
-              {isCustom(drill) && <DrillActions drill={drill} onEdit={onEdit} onDelete={onDelete} />}
+              <button type="button" className="drill-name" onClick={() => onSelect(drill)} aria-current={drill.id === selectedId}>
+                {drill.name}
+                <span className="drill-meta">{drillMeta(drill)}</span>
+              </button>
             </li>
           ))}
         </ul>
@@ -51,25 +37,5 @@ export function MyDrills({ drills, selectedId, isCustom, progressOf, onSelect, o
         </button>
       </div>
     </nav>
-  )
-}
-
-export function DrillActions({ drill, onEdit, onDelete }: { drill: Drill; onEdit: (d: Drill) => void; onDelete: (d: Drill) => void }) {
-  return (
-    <span className="drill-actions">
-      <button type="button" className="small" onClick={() => onEdit(drill)} aria-label={`Edit ${drill.name}`}>
-        Edit
-      </button>
-      <button
-        type="button"
-        className="small danger"
-        onClick={() => {
-          if (window.confirm(`Delete "${drill.name}"?`)) onDelete(drill)
-        }}
-        aria-label={`Delete ${drill.name}`}
-      >
-        Delete
-      </button>
-    </span>
   )
 }

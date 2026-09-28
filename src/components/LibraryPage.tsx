@@ -1,7 +1,7 @@
 import type { DrillProgress } from '../drill/progress'
 import type { Drill } from '../drill/types'
 import { drillMeta } from './drillMeta'
-import { DrillActions } from './MyDrills'
+import { DrillActions } from './DrillActions'
 import { ProgressTag } from './ProgressTag'
 import { StarButton } from './StarButton'
 
