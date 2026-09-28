@@ -4,7 +4,7 @@ import { DrillTrainer } from './components/DrillTrainer'
 import { EngineDrillTrainer } from './components/EngineDrillTrainer'
 import { LibraryPage } from './components/LibraryPage'
 import { MyDrills } from './components/MyDrills'
-import { drills as builtInDrills } from './drill/drills'
+import { drills as builtInDrills, starterDrills } from './drill/drills'
 import { loadFavorites, saveFavorites, toggleFavorite } from './drill/favorites'
 import { loadCustomDrills, newDrillId, saveCustomDrills } from './drill/storage'
 import type { Drill } from './drill/types'
@@ -16,9 +16,9 @@ type View = { kind: 'play' } | { kind: 'edit'; drill?: Drill; id: string }
 
 export default function App() {
   const [customDrills, setCustomDrills] = useState<Drill[]>(() => loadCustomDrills())
-  // On first run everything already there starts out starred, so My drills isn't empty.
+  // On first run the starter drills and anything you made start out starred, so My drills isn't empty but stays short.
   const [favorites, setFavorites] = useState<string[]>(
-    () => loadFavorites() ?? [...builtInDrills, ...customDrills].map((d) => d.id),
+    () => loadFavorites() ?? [...starterDrills, ...customDrills].map((d) => d.id),
   )
   // Open on the first drill of My drills, falling back to the first built-in one.
   const [selectedId, setSelectedId] = useState<string>(
@@ -28,7 +28,7 @@ export default function App() {
   )
   const [view, setView] = useState<View>({ kind: 'play' })
   const [saveFailed, setSaveFailed] = useState(false)
-  const [page, goTo] = useHashPage()
+  const [page, goTo, libraryHref] = useHashPage()
 
   const allDrills = [...builtInDrills, ...customDrills]
   const selected = allDrills.find((d) => d.id === selectedId) ?? builtInDrills[0]
@@ -90,7 +90,7 @@ export default function App() {
             <a href="#/" aria-current={page === 'train' ? 'page' : undefined}>
               Train
             </a>
-            <a href="#/library" aria-current={page === 'library' ? 'page' : undefined}>
+            <a href={libraryHref} aria-current={page === 'library' ? 'page' : undefined}>
               Library
             </a>
           </nav>

@@ -34,6 +34,13 @@ Drills live in `src/drill/drills.ts`:
 - If the side to move is not `playerColor`, the first move is played automatically.
 - A legal move that is off the line is judged by Stockfish (see below). The piece snaps back either way so you can play the line move. **Hint** highlights the piece to move.
 - The checking logic is in `src/drill/engine.ts`, independent of the UI, and a unit test verifies every drill's line is legal.
+- Built-in drills can carry `themes` (such as `'endgame'` or `'rook-ending'`). Together with tags derived from the drill itself (line or engine, goal, randomized, side, built-in or yours) they drive the Library's filter chips; see `src/drill/tags.ts`.
+
+## Library
+
+The **Library** page lists every drill, 12 cards per page. Filter chips at the top keep drills carrying all the selected tags, and the search box matches every word against the name, description and tags. Filters, search and page live in the URL hash (`#/library?tags=engine,draw&q=rook&page=2`), so a filtered view can be bookmarked.
+
+Besides the basic mates, `classicDrills` are randomized engine drills from textbook endgames (king and pawn, Lucena, Philidor, queen against rook, rook against bishop, the wrong bishop, ...): convert the win, hold the draw, or win a piece. Each base position was checked with Stockfish to be won, or drawn for the draw goal, by the player.
 
 ## Engine checks
 

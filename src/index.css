@@ -589,12 +589,119 @@ button.star:hover {
   color: var(--muted);
 }
 
-.drill-card-source {
+.drill-card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
   margin-top: 4px;
+}
+
+.drill-card-tag {
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--muted) 14%, transparent);
   font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
   color: var(--muted);
+}
+
+/* Search, tag chips and the match count above the cards. */
+.library-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.library-search {
+  width: 100%;
+  max-width: 420px;
+  font: inherit;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text);
+}
+
+.library-search:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+  border-color: transparent;
+}
+
+.tag-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+button.tag-chip {
+  padding: 4px 12px;
+  border-radius: 999px;
+  border-color: var(--border);
+  background: var(--panel);
+  color: var(--text);
+  font-size: 0.875rem;
+  white-space: nowrap;
+}
+
+button.tag-chip:hover {
+  border-color: var(--accent);
+}
+
+button.tag-chip[aria-pressed='true'] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--panel);
+}
+
+.library-count {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--muted);
+}
+
+button.link-button {
+  padding: 0;
+  border: none;
+  font-size: inherit;
+  text-decoration: underline;
+}
+
+.library-empty {
+  padding: 32px 0;
+  text-align: center;
+  color: var(--muted);
+}
+
+.pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 24px;
+}
+
+.pagination-pages {
+  display: flex;
+  gap: 4px;
+}
+
+button.pagination-page {
+  min-width: 40px;
+  padding: 8px 0;
+  border-color: var(--border);
+  color: var(--text);
+}
+
+button.pagination-page[aria-current='page'] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--panel);
 }
 
 .drill-card-star {
@@ -809,6 +916,14 @@ button.star:hover {
     padding-inline: 10px;
   }
 
+  /* One scrolling row of chips instead of a wall of them. */
+  .tag-chips {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    margin: 0 -12px;
+    padding: 0 12px 4px;
+  }
+
   /* The result card has to fit over a small board. */
   .result-backdrop {
     padding: 8px;
@@ -851,6 +966,10 @@ button.star:hover {
 
   button.small {
     padding: 8px 12px;
+  }
+
+  button.tag-chip {
+    padding: 8px 14px;
   }
 
   button.star,

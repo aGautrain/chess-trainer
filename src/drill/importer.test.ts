@@ -65,16 +65,19 @@ describe('buildDrill', () => {
 })
 
 describe('drillToInput', () => {
+  // Themes belong to built-in drills, which the editor never saves, so they don't round-trip.
+  const plainItalian = { ...italianGame, themes: undefined }
+
   it('round-trips a drill through the editor fields', () => {
-    const input = drillToInput(italianGame)
+    const input = drillToInput(plainItalian)
     expect(input.fen).toBe(italianFen)
     expect(input.moves.startsWith('3. Bc4 Bc5 4. c3')).toBe(true)
     const result = buildDrill(input, italianGame.id)
-    expect(result).toEqual({ ok: true, drill: italianGame })
+    expect(result).toEqual({ ok: true, drill: plainItalian })
   })
 
   it('round-trips a drill that starts with black to move', () => {
-    const drill = { ...italianGame, fen: 'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1', line: ['c5', 'Nf3', 'd6'], playerColor: 'black' as const }
+    const drill = { ...plainItalian, fen: 'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1', line: ['c5', 'Nf3', 'd6'], playerColor: 'black' as const }
     expect(buildDrill(drillToInput(drill), drill.id)).toEqual({ ok: true, drill })
   })
 
