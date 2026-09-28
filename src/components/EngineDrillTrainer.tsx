@@ -1,6 +1,7 @@
 import { Chess } from 'chess.js'
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { Lightbulb, RotateCcw } from 'lucide-react'
+import confetti from 'canvas-confetti'
 import { Chessboard, type PieceDropHandlerArgs, type PieceHandlerArgs, type SquareHandlerArgs } from 'react-chessboard'
 import { formatMoves, sideToMove } from '../drill/engine'
 import { goalLabel, goalStatus } from '../drill/goals'
@@ -150,6 +151,14 @@ export function EngineDrillTrainer({ drill, progress = null, onSolved, onTarget 
 
   // Keep the result of a successful run, once, while it is the current run.
   // A randomized drill waits for its run's target, since its result is counted against it.
+  // A win is celebrated once per run. Reduced-motion users get no confetti.
+  const celebrated = useRef(-1)
+  useEffect(() => {
+    if (!solved || celebrated.current === run.current) return
+    celebrated.current = run.current
+    void confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 }, disableForReducedMotion: true })
+  }, [solved])
+
   const reported = useRef(-1)
   useEffect(() => {
     if (!solved || reported.current === run.current) return
@@ -287,54 +296,75 @@ export function EngineDrillTrainer({ drill, progress = null, onSolved, onTarget 
           </p>
         </div>
       </div>
-      <aside className="panel">
-        <h2>{drill.name}</h2>
-        <Concept text={drill.description} />
-        <p className={`feedback feedback-${feedback.tone}`} role="status" data-testid="feedback">
-          {feedback.text}
-        </p>
-        <dl className="stats">
-          <dt>Goal</dt>
-          <dd data-testid="goal">{goalLabel(drill.goal)}</dd>
-          {hasTarget(drill) && (
-            <>
-              <dt>Target</dt>
-              <dd data-testid="target">
-                {shuffling || runTarget === undefined
-                  ? 'Stockfish is looking for the shortest mate…'
-                  : runTarget === null
-                    ? 'Stockfish found no forced mate to count'
-                    : `Mate in ${plural(runTarget)}`}
-              </dd>
-            </>
-          )}
-          {tracksBest(drill) && (
-            <>
-              <dt>Your moves</dt>
-              <dd data-testid="player-moves">{playerMoves}</dd>
-            </>
-          )}
-          {keepsBest && (
-            <>
-              <dt>Best</dt>
-              <dd data-testid="best">
-                <span className={best?.completed ? 'progress-tag completed' : 'progress-tag'}>{best?.text ?? 'First time'}</span>
-              </dd>
-            </>
-          )}
-        </dl>
-        <p className="moves" data-testid="moves">
-          {formatMoves(startFen ?? drill.fen, moves) || 'No moves played yet.'}
-        </p>
-        <div className="actions">
-          <IconButton label="Hint" onClick={showHint} disabled={!playerToMove || engineError || hint?.fen === fen}>
-            <Lightbulb aria-hidden size={20} />
-          </IconButton>
-          <IconButton label="Restart" onClick={restart}>
-            <RotateCcw aria-hidden size={20} />
-          </IconButton>
-        </div>
-      </aside>
+      {over ? (
+        <aside className={`panel result result-${status.state}`} data-testid="result">
+          <h2>{status.state === 'won' ? 'Win!' : 'Lost'}</h2>
+          <p className="description">{status.reason}</p>
+          <dl className="stats">
+            {typeof runTarget === 'number' && (
+              <>
+                <dt>Target</dt>
+                <dd>{plural(runTarget)}</dd>
+              </>
+            )}
+            <dt>Your moves</dt>
+            <dd data-testid="player-moves">{playerMoves}</dd>
+          </dl>
+          <button type="button" className="primary retry" onClick={restart}>
+            <RotateCcw aria-hidden size={18} />
+            Retry
+          </button>
+        </aside>
+      ) : (
+        <aside className="panel">
+          <h2>{drill.name}</h2>
+          <Concept text={drill.description} />
+          <p className={`feedback feedback-${feedback.tone}`} role="status" data-testid="feedback">
+            {feedback.text}
+          </p>
+          <dl className="stats">
+            <dt>Goal</dt>
+            <dd data-testid="goal">{goalLabel(drill.goal)}</dd>
+            {hasTarget(drill) && (
+              <>
+                <dt>Target</dt>
+                <dd data-testid="target">
+                  {shuffling || runTarget === undefined
+                    ? 'Stockfish is looking for the shortest mate…'
+                    : runTarget === null
+                      ? 'Stockfish found no forced mate to count'
+                      : `Mate in ${plural(runTarget)}`}
+                </dd>
+              </>
+            )}
+            {tracksBest(drill) && (
+              <>
+                <dt>Your moves</dt>
+                <dd data-testid="player-moves">{playerMoves}</dd>
+              </>
+            )}
+            {keepsBest && (
+              <>
+                <dt>Best</dt>
+                <dd data-testid="best">
+                  <span className={best?.completed ? 'progress-tag completed' : 'progress-tag'}>{best?.text ?? 'First time'}</span>
+                </dd>
+              </>
+            )}
+          </dl>
+          <p className="moves" data-testid="moves">
+            {formatMoves(startFen ?? drill.fen, moves) || 'No moves played yet.'}
+          </p>
+          <div className="actions">
+            <IconButton label="Hint" onClick={showHint} disabled={!playerToMove || engineError || hint?.fen === fen}>
+              <Lightbulb aria-hidden size={20} />
+            </IconButton>
+            <IconButton label="Restart" onClick={restart}>
+              <RotateCcw aria-hidden size={20} />
+            </IconButton>
+          </div>
+        </aside>
+      )}
     </section>
   )
 }
