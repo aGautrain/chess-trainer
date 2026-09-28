@@ -168,7 +168,8 @@ export function EngineDrillTrainer({ drill, progress = null, onSolved, onTarget 
   useEffect(() => {
     if (!solved || celebrated.current === run.current) return
     celebrated.current = run.current
-    void confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 }, disableForReducedMotion: true })
+    // Fewer ticks and more gravity than the defaults (200, 1) so the pieces clear away in about a second.
+    void confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 }, ticks: 80, gravity: 1.6, disableForReducedMotion: true })
   }, [solved])
 
   const reported = useRef(-1)
