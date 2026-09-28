@@ -7,6 +7,7 @@ import { legalTargets } from '../drill/legalMoves'
 import type { EngineDrill } from '../drill/types'
 import { playUci } from '../engine/moves'
 import { getEngine } from '../engine/stockfish'
+import type { EngineIdentity } from '../engine/uci'
 import { formatDue } from '../review/format'
 import { gradeFromRun } from '../review/scheduler'
 import { useNow, useReviews } from '../review/useReviews'
@@ -17,6 +18,17 @@ import { EvalBar } from './EvalBar'
 const ENGINE_MOVETIME_MS = 1000
 /** Think time for the hint. */
 const HINT_MOVETIME_MS = 500
+
+/** One quiet line with the engine and the settings its moves are searched with. */
+function engineParams(identity: EngineIdentity | null, depth: number | null): string {
+  const parts = [identity?.name ?? 'Stockfish', 'best move', `${ENGINE_MOVETIME_MS / 1000} s per move`]
+  if (depth) parts.push(`depth ${depth}`)
+  const { Threads, Hash, 'Skill Level': skill } = identity?.options ?? {}
+  if (Threads) parts.push(`${Threads} thread${Threads === '1' ? '' : 's'}`)
+  if (Hash) parts.push(`${Hash} MB hash`)
+  if (skill) parts.push(`skill ${skill}`)
+  return parts.join(' · ')
+}
 
 type Feedback = { tone: 'info' | 'good' | 'bad' | 'done'; text: string }
 
@@ -29,6 +41,9 @@ export function EngineDrillTrainer({ drill }: { drill: EngineDrill }) {
   const [hintsUsed, setHintsUsed] = useState(0)
   const [engineError, setEngineError] = useState(false)
   const [selected, setSelected] = useState<string | null>(null)
+  const [identity, setIdentity] = useState<EngineIdentity | null>(null)
+  /** Depth Stockfish reached on its last move. */
+  const [lastDepth, setLastDepth] = useState<number | null>(null)
   /** Bumped on restart so late engine answers from the previous run are dropped. */
   const run = useRef(0)
   /** The run whose result was last written to the review schedule. */
@@ -50,6 +65,17 @@ export function EngineDrillTrainer({ drill }: { drill: EngineDrill }) {
   const hintSquare = hint?.fen === fen ? hint.square : null
   const targets = useMemo(() => (selected && playerToMove ? legalTargets(fen, selected) : []), [fen, selected, playerToMove])
 
+  useEffect(() => {
+    let cancelled = false
+    getEngine()
+      .describe()
+      .then((id) => !cancelled && setIdentity(id))
+      .catch(() => undefined)
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
   // Stockfish answers with its best move.
   useEffect(() => {
     if (over || playerTurn || engineError) return
@@ -57,8 +83,9 @@ export function EngineDrillTrainer({ drill }: { drill: EngineDrill }) {
     let cancelled = false
     getEngine()
       .search(fen, { movetime: ENGINE_MOVETIME_MS })
-      .then(({ bestMove }) => {
+      .then(({ bestMove, depth }) => {
         if (cancelled || runId !== run.current || !bestMove) return
+        setLastDepth(depth)
         const played = playUci(fen, bestMove)
         if (played) setMoves((m) => [...m, played.move.san])
       })
@@ -128,6 +155,7 @@ export function EngineDrillTrainer({ drill }: { drill: EngineDrill }) {
     setHintsUsed(0)
     setSelected(null)
     setEngineError(false)
+    setLastDepth(null)
   }
 
   let feedback: Feedback
@@ -173,6 +201,9 @@ export function EngineDrillTrainer({ drill }: { drill: EngineDrill }) {
               squareStyles,
             }}
           />
+          <p className="engine-params" data-testid="engine-params">
+            {engineParams(identity, lastDepth)}
+          </p>
         </div>
       </div>
       <aside className="panel">

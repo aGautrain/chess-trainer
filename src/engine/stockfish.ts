@@ -1,4 +1,4 @@
-import { parseBestMove, parseInfo, type InfoLine, type Score } from './uci'
+import { parseBestMove, parseIdentity, parseInfo, type EngineIdentity, type InfoLine, type Score } from './uci'
 
 /** The vendored Stockfish build in public/engine, see its README. */
 export const ENGINE_URL = `${import.meta.env.BASE_URL}engine/stockfish-19-lite-single.js`
@@ -37,6 +37,7 @@ export class StockfishEngine {
   private listeners = new Set<LineListener>()
   private queue: Promise<unknown> = Promise.resolve()
   private readonly ready: Promise<void>
+  private identity: EngineIdentity = { name: 'Unknown engine', options: {} }
 
   constructor(worker: EngineWorker = new Worker(ENGINE_URL) as unknown as EngineWorker) {
     this.worker = worker
@@ -69,7 +70,12 @@ export class StockfishEngine {
   }
 
   private async handshake(): Promise<void> {
-    await this.waitFor((line) => line === 'uciok', ['uci'])
+    const lines: string[] = []
+    await this.waitFor((line) => {
+      lines.push(line)
+      return line === 'uciok'
+    }, ['uci'])
+    this.identity = parseIdentity(lines)
     await this.waitFor((line) => line === 'readyok', ['isready'])
   }
 
@@ -78,11 +84,18 @@ export class StockfishEngine {
     return this.ready
   }
 
+  /** The engine's name and current option values, once the handshake is done. */
+  async describe(): Promise<EngineIdentity> {
+    await this.ready
+    return { name: this.identity.name, options: { ...this.identity.options } }
+  }
+
   /** Sends a raw UCI option, e.g. setOption('Skill Level', 10). */
   setOption(name: string, value: string | number): Promise<void> {
     return this.enqueue(async () => {
       await this.ready
       await this.waitFor((line) => line === 'readyok', [`setoption name ${name} value ${value}`, 'isready'])
+      this.identity.options[name] = String(value)
     })
   }
 
