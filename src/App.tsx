@@ -31,7 +31,7 @@ export default function App() {
   const myDrills = favorites.flatMap((id) => byId.get(id) ?? [])
   const isCustom = (drill: Drill) => customDrills.some((d) => d.id === drill.id)
   const isStarred = (drill: Drill) => favorites.includes(drill.id)
-  const { progress, recordResult, forget } = useDrillProgress(allDrills)
+  const { progress, recordResult, recordTarget, forget } = useDrillProgress()
   const progressOf = (drill: Drill) => progressFor(progress, drill)
 
   function updateCustom(next: Drill[]) {
@@ -116,13 +116,8 @@ export default function App() {
               <MyDrills
                 drills={myDrills}
                 selectedId={view.kind === 'play' ? selected.id : null}
-                isCustom={isCustom}
-                progressOf={progressOf}
                 onSelect={play}
-                onUnstar={toggleStar}
                 onNew={() => edit()}
-                onEdit={edit}
-                onDelete={remove}
                 onBrowse={() => goTo('library')}
               />
               {view.kind === 'edit' ? (
@@ -133,7 +128,8 @@ export default function App() {
                   <EngineDrillTrainer key={`${selected.id}:${selected.fen}:${selected.playerColor}:${JSON.stringify(selected.goal)}:${selected.randomize === true}`} 
                     drill={selected}
                     progress={progressOf(selected)}
-                    onSolved={(moves) => recordResult(selected, moves)}
+                    onSolved={(moves, target) => recordResult(selected, moves, target)}
+                    onTarget={(target) => recordTarget(selected, target)}
                   />
                 ) : (
                   <DrillTrainer key={`${selected.id}:${selected.fen}:${selected.line.join(' ')}`} drill={selected} />

@@ -3,12 +3,13 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { Chessboard, type PieceDropHandlerArgs, type PieceHandlerArgs, type SquareHandlerArgs } from 'react-chessboard'
 import { formatMoves, sideToMove } from '../drill/engine'
 import { goalLabel, goalStatus } from '../drill/goals'
-import { hasTarget, tracksBest, type DrillProgress } from '../drill/progress'
+import { hasTarget, isCompleted, storesTarget, tracksBest, type DrillProgress } from '../drill/progress'
 import { randomizePosition } from '../drill/randomize'
+import { computeTarget } from '../drill/targets'
 import { legalTargets } from '../drill/legalMoves'
 import type { EngineDrill } from '../drill/types'
 import { playUci } from '../engine/moves'
-import { getEngine } from '../engine/stockfish'
+import { getAnalysisEngine, getEngine } from '../engine/stockfish'
 import type { EngineIdentity } from '../engine/uci'
 import { captureRingStyle, hintStyle, lastMoveStyle, moveDotStyle, selectedStyle } from './boardStyles'
 import { EvalBar } from './EvalBar'
@@ -37,14 +38,16 @@ interface Props {
   drill: EngineDrill
   /** Best result and move target, for drills that keep them. */
   progress?: DrillProgress | null
-  /** Called once per successful run with the number of moves the player made. */
-  onSolved?: (moves: number) => void
+  /** Called once per successful run with the number of moves the player made and Stockfish's mate-in-N for that run's start. */
+  onSolved?: (moves: number, target: number | null) => void
+  /** Called when the target of a fixed drill has been searched, so it can be kept. */
+  onTarget?: (target: number | null) => void
 }
 
 const plural = (n: number) => `${n} move${n === 1 ? '' : 's'}`
 
 /** Plays a position out against Stockfish's best moves until the drill's goal is met or can no longer be. */
-export function EngineDrillTrainer({ drill, progress = null, onSolved }: Props) {
+export function EngineDrillTrainer({ drill, progress = null, onSolved, onTarget }: Props) {
   /** The position this run starts from: the drill's own, or a shuffle of it. Null while shuffling. */
   const [startFen, setStartFen] = useState<string | null>(drill.randomize ? null : drill.fen)
   /** Bumped to ask for a new shuffle. */
@@ -59,6 +62,8 @@ export function EngineDrillTrainer({ drill, progress = null, onSolved }: Props) 
   const [identity, setIdentity] = useState<EngineIdentity | null>(null)
   /** Depth Stockfish reached on its last move. */
   const [lastDepth, setLastDepth] = useState<number | null>(null)
+  /** Stockfish's mate-in-N for the player from the position this run started from. */
+  const [searchedTarget, setSearchedTarget] = useState<{ fen: string; value: number | null } | null>(null)
   /** Bumped on restart so late engine answers from the previous run are dropped. */
   const run = useRef(0)
 
@@ -76,6 +81,20 @@ export function EngineDrillTrainer({ drill, progress = null, onSolved }: Props) 
   const playerToMove = !shuffling && !over && playerTurn
   const playerMoves = game.history({ verbose: true }).filter((m) => m.color === drill.playerColor[0]).length
   const solved = !shuffling && status.state === 'won'
+  const storedTarget = storesTarget(drill) ? progress?.target : undefined
+  /** Undefined while Stockfish is still searching this run's start. */
+  const runTarget = storedTarget !== undefined ? storedTarget : searchedTarget?.fen === startFen ? searchedTarget.value : undefined
+  // A randomized drill's best is measured against each run's target, so it needs one.
+  const keepsBest = tracksBest(drill) && (!drill.randomize || hasTarget(drill))
+  const bestText = drill.randomize
+    ? progress?.bestOver === undefined
+      ? 'Not solved yet'
+      : progress.bestOver === 0
+        ? 'Matched Stockfish'
+        : `${plural(progress.bestOver)} over the target`
+    : progress?.best === undefined
+      ? 'Not solved yet'
+      : plural(progress.best)
   const hintSquare = hint?.fen === fen ? hint.square : null
   const targets = useMemo(() => (selected && playerToMove ? legalTargets(fen, selected) : []), [fen, selected, playerToMove])
 
@@ -113,13 +132,35 @@ export function EngineDrillTrainer({ drill, progress = null, onSolved }: Props) 
     }
   }, [drill.randomize, drill.fen, drill.playerColor, shuffle])
 
+  // Search the shortest mate from the position this run starts from, unless a fixed drill already knows it.
+  useEffect(() => {
+    if (!hasTarget(drill) || startFen === null || storedTarget !== undefined) return
+    let cancelled = false
+    const engine = getAnalysisEngine()
+    computeTarget(startFen, drill.playerColor, (fen, limits) => engine.search(fen, limits))
+      .then((value) => {
+        if (cancelled) return
+        setSearchedTarget({ fen: startFen, value })
+        if (storesTarget(drill)) onTarget?.(value)
+      })
+      // Without Stockfish there is no target to show; the drill still plays as before.
+      .catch(() => !cancelled && setSearchedTarget({ fen: startFen, value: null }))
+    return () => {
+      cancelled = true
+    }
+    // onTarget is a new function on every render of the parent.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [drill, startFen, storedTarget])
+
   // Keep the result of a successful run, once, while it is the current run.
+  // A randomized drill waits for its run's target, since its result is counted against it.
   const reported = useRef(-1)
   useEffect(() => {
     if (!solved || reported.current === run.current) return
+    if (drill.randomize && hasTarget(drill) && runTarget === undefined) return
     reported.current = run.current
-    onSolved?.(playerMoves)
-  }, [solved, playerMoves, onSolved])
+    onSolved?.(playerMoves, runTarget ?? null)
+  }, [solved, playerMoves, onSolved, drill, runTarget])
 
   // Stockfish answers with its best move.
   useEffect(() => {
@@ -263,28 +304,30 @@ export function EngineDrillTrainer({ drill, progress = null, onSolved }: Props) 
               <dd>Randomized</dd>
             </>
           )}
+          {hasTarget(drill) && (
+            <>
+              <dt>Target</dt>
+              <dd data-testid="target">
+                {shuffling || runTarget === undefined
+                  ? 'Stockfish is looking for the shortest mate…'
+                  : runTarget === null
+                    ? 'Stockfish found no forced mate to count'
+                    : `Mate in ${plural(runTarget)}`}
+              </dd>
+            </>
+          )}
           {tracksBest(drill) && (
             <>
               <dt>Your moves</dt>
               <dd data-testid="player-moves">{playerMoves}</dd>
-              {hasTarget(drill) && (
-                <>
-                  <dt>Target</dt>
-                  <dd data-testid="target">
-                    {progress?.target === undefined
-                      ? 'Stockfish is looking for the shortest mate…'
-                      : progress.target === null
-                        ? 'Stockfish found no forced mate to count'
-                        : `Mate in ${plural(progress.target)}`}
-                  </dd>
-                </>
-              )}
+            </>
+          )}
+          {keepsBest && (
+            <>
               <dt>Best</dt>
               <dd data-testid="best">
-                {progress?.best === undefined ? 'Not solved yet' : plural(progress.best)}
-                {progress?.best !== undefined && typeof progress.target === 'number' && progress.best <= progress.target && (
-                  <span className="progress-tag completed">Completed</span>
-                )}
+                {bestText}
+                {isCompleted(progress) && <span className="progress-tag completed">Completed</span>}
               </dd>
             </>
           )}

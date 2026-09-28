@@ -17,10 +17,15 @@ function defaultStore(): KeyValueStore | null {
 export interface DrillProgress {
   /** The drill content this was recorded against, so editing a drill starts it over. */
   signature: string
-  /** Fewest of the player's own moves in a successful finish. */
+  /** Fixed drills: fewest of the player's own moves in a successful finish. */
   best?: number
-  /** Stockfish's mate-in-N from the start, in the player's moves. Null when it found no forced mate; missing when not computed yet. */
+  /** Fixed drills: Stockfish's mate-in-N from the start, in the player's moves. Null when it found no forced mate; missing when not computed yet. */
   target?: number | null
+  /**
+   * Randomized drills, where every run has its own shortest mate: the fewest moves a successful finish took beyond
+   * Stockfish's mate-in-N for that run's position. 0 means a run matched Stockfish.
+   */
+  bestOver?: number
 }
 
 /** Progress by drill id. */
@@ -31,14 +36,19 @@ export function drillSignature(drill: EngineDrill): string {
   return `${drill.fen}|${drill.playerColor}|${JSON.stringify(drill.goal)}`
 }
 
-/** Best results are only comparable when every run starts from the same position. */
+/** Engine drills keep their best result. */
 export function tracksBest(drill: Drill): drill is EngineDrill {
-  return drill.mode === 'engine' && !drill.randomize
+  return drill.mode === 'engine'
 }
 
 /** Only a checkmate goal has a move count Stockfish can prove, as a mate score. */
 export function hasTarget(drill: Drill): drill is EngineDrill {
-  return tracksBest(drill) && drill.goal.kind === 'checkmate'
+  return drill.mode === 'engine' && drill.goal.kind === 'checkmate'
+}
+
+/** A fixed drill always starts from the same position, so its target is worth keeping. */
+export function storesTarget(drill: Drill): drill is EngineDrill {
+  return hasTarget(drill) && !drill.randomize
 }
 
 /** The progress recorded for this drill as it is now, or null. */
@@ -53,15 +63,30 @@ function update(map: ProgressMap, drill: EngineDrill, change: Partial<DrillProgr
   return { ...map, [drill.id]: { ...current, ...change } }
 }
 
-/** Records a successful finish in `moves` player moves, kept only if it beats the best so far. */
-export function withResult(map: ProgressMap, drill: Drill, moves: number): ProgressMap {
+/**
+ * Records a successful finish in `moves` player moves, kept only if it beats the best so far.
+ * A randomized drill compares runs by moves beyond the run's own target, so it needs that target.
+ */
+export function withResult(map: ProgressMap, drill: Drill, moves: number, target: number | null = null): ProgressMap {
   if (!tracksBest(drill)) return map
-  const best = progressFor(map, drill)?.best
-  return best !== undefined && best <= moves ? map : update(map, drill, { best: moves })
+  const current = progressFor(map, drill)
+  if (drill.randomize) {
+    if (target === null) return map
+    const over = Math.max(0, moves - target)
+    return current?.bestOver !== undefined && current.bestOver <= over ? map : update(map, drill, { bestOver: over })
+  }
+  return current?.best !== undefined && current.best <= moves ? map : update(map, drill, { best: moves })
 }
 
 export function withTarget(map: ProgressMap, drill: Drill, target: number | null): ProgressMap {
-  return hasTarget(drill) ? update(map, drill, { target }) : map
+  return storesTarget(drill) ? update(map, drill, { target }) : map
+}
+
+/** Whether the drill was once finished in as few moves as Stockfish's mate. */
+export function isCompleted(progress: DrillProgress | null): boolean {
+  if (!progress) return false
+  if (progress.bestOver !== undefined) return progress.bestOver === 0
+  return progress.best !== undefined && typeof progress.target === 'number' && progress.best <= progress.target
 }
 
 export function withoutDrill(map: ProgressMap, id: string): ProgressMap {
@@ -82,18 +107,14 @@ export function mateTarget(score: Score, fen: string, playerColor: Color): numbe
   return forPlayer ? Math.abs(score.value) : null
 }
 
-export type ProgressSummary = { kind: 'completed'; best: number; target: number } | { kind: 'progress'; text: string }
+const plural = (n: number) => `${n} move${n === 1 ? '' : 's'}`
 
-/** What a drill card shows: "20/14 moves", "Target 14 moves", "Best 20 moves", a Completed tag, or nothing. */
-export function summarize(progress: DrillProgress | null): ProgressSummary | null {
-  const best = progress?.best
-  const target = progress?.target ?? undefined
-  const moves = (n: number) => `${n} move${n === 1 ? '' : 's'}`
-  if (best !== undefined && target !== undefined) {
-    return best <= target ? { kind: 'completed', best, target } : { kind: 'progress', text: `${best}/${moves(target)}` }
-  }
-  if (target !== undefined) return { kind: 'progress', text: `Target ${moves(target)}` }
-  if (best !== undefined) return { kind: 'progress', text: `Best ${moves(best)}` }
+/** The Library card tag: Completed, or the best result so far ("Best 20 moves", "Best 2 moves over"), or nothing. */
+export function summarize(progress: DrillProgress | null): { completed: boolean; text: string } | null {
+  if (!progress) return null
+  if (isCompleted(progress)) return { completed: true, text: 'Completed' }
+  if (progress.bestOver !== undefined) return { completed: false, text: `Best ${plural(progress.bestOver)} over` }
+  if (progress.best !== undefined) return { completed: false, text: `Best ${plural(progress.best)}` }
   return null
 }
 
@@ -121,6 +142,7 @@ export function loadProgress(store: KeyValueStore | null = defaultStore()): Prog
     const entry: DrillProgress = { signature: e.signature }
     if (count(e.best)) entry.best = e.best as number
     if (e.target === null || count(e.target)) entry.target = e.target as number | null
+    if (typeof e.bestOver === 'number' && Number.isInteger(e.bestOver) && e.bestOver >= 0) entry.bestOver = e.bestOver
     map[id] = entry
   }
   return map
