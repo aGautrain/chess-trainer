@@ -15,6 +15,7 @@ import type { EngineIdentity } from '../engine/uci'
 import { captureRingStyle, hintStyle, lastMoveStyle, moveDotStyle, selectedStyle } from './boardStyles'
 import { EvalBar } from './EvalBar'
 import { Concept, IconButton } from './PanelParts'
+import { useBoardPosition } from './useBoardPosition'
 
 /** Think time for Stockfish's moves. */
 const ENGINE_MOVETIME_MS = 1000
@@ -75,6 +76,7 @@ export function EngineDrillTrainer({ drill, progress = null, onSolved, onTarget 
     return g
   }, [startFen, drill.fen, moves])
   const fen = game.fen()
+  const { position, onDropOffBoard } = useBoardPosition(fen)
   const status = useMemo(() => goalStatus(game, drill.playerColor, drill.goal), [game, drill.playerColor, drill.goal])
   const over = !shuffling && status.state !== 'playing'
   const lastMove = moves.length ? (game.history({ verbose: true }).at(-1) ?? null) : null
@@ -194,7 +196,11 @@ export function EngineDrillTrainer({ drill, progress = null, onSolved, onTarget 
   function onPieceDrop({ sourceSquare, targetSquare }: PieceDropHandlerArgs): boolean {
     if (targetSquare === sourceSquare) return false
     setSelected(null)
-    if (!playerToMove || !targetSquare) return false
+    if (!targetSquare) {
+      onDropOffBoard()
+      return false
+    }
+    if (!playerToMove) return false
     return tryMove(sourceSquare, targetSquare)
   }
 
@@ -265,7 +271,7 @@ export function EngineDrillTrainer({ drill, progress = null, onSolved, onTarget 
           <Chessboard
             options={{
               id: drill.id,
-              position: fen,
+              position,
               boardOrientation: drill.playerColor,
               onPieceDrag,
               onPieceDrop,
