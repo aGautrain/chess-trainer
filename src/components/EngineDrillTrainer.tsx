@@ -1,6 +1,7 @@
 import { Chess } from 'chess.js'
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
-import { Lightbulb, RotateCcw } from 'lucide-react'
+import { Lightbulb, RotateCcw, X } from 'lucide-react'
+import confetti from 'canvas-confetti'
 import { Chessboard, type PieceDropHandlerArgs, type PieceHandlerArgs, type SquareHandlerArgs } from 'react-chessboard'
 import { formatMoves, sideToMove } from '../drill/engine'
 import { goalLabel, goalStatus } from '../drill/goals'
@@ -64,6 +65,8 @@ export function EngineDrillTrainer({ drill, progress = null, onSolved, onTarget 
   const [identity, setIdentity] = useState<EngineIdentity | null>(null)
   /** Depth Stockfish reached on its last move. */
   const [lastDepth, setLastDepth] = useState<number | null>(null)
+  /** The run whose result card was closed, so it stays closed until the next run ends. */
+  const [dismissed, setDismissed] = useState(-1)
   /** Stockfish's mate-in-N for the player from the position this run started from. */
   const [searchedTarget, setSearchedTarget] = useState<{ fen: string; value: number | null } | null>(null)
   /** Bumped on restart so late engine answers from the previous run are dropped. */
@@ -150,6 +153,24 @@ export function EngineDrillTrainer({ drill, progress = null, onSolved, onTarget 
 
   // Keep the result of a successful run, once, while it is the current run.
   // A randomized drill waits for its run's target, since its result is counted against it.
+  const showResult = over && dismissed !== run.current
+
+  // Escape closes the result card.
+  useEffect(() => {
+    if (!showResult) return
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setDismissed(run.current)
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [showResult])
+
+  // A win is celebrated once per run. Reduced-motion users get no confetti.
+  const celebrated = useRef(-1)
+  useEffect(() => {
+    if (!solved || celebrated.current === run.current) return
+    celebrated.current = run.current
+    void confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 }, disableForReducedMotion: true })
+  }, [solved])
+
   const reported = useRef(-1)
   useEffect(() => {
     if (!solved || reported.current === run.current) return
@@ -268,20 +289,53 @@ export function EngineDrillTrainer({ drill, progress = null, onSolved, onTarget 
       <div className="board-area">
         <EvalBar fen={fen} orientation={drill.playerColor} />
         <div className="board">
-          <Chessboard
-            options={{
-              id: drill.id,
-              position,
-              boardOrientation: drill.playerColor,
-              onPieceDrag,
-              onPieceDrop,
-              onPieceDragCancel: () => setSelected(null),
-              onSquareClick,
-              canDragPiece: ({ square }) => square !== null && selectable(square),
-              allowDragging: playerToMove,
-              squareStyles,
-            }}
-          />
+          <div className="board-frame">
+            <Chessboard
+              options={{
+                id: drill.id,
+                position,
+                boardOrientation: drill.playerColor,
+                onPieceDrag,
+                onPieceDrop,
+                onPieceDragCancel: () => setSelected(null),
+                onSquareClick,
+                canDragPiece: ({ square }) => square !== null && selectable(square),
+                allowDragging: playerToMove,
+                squareStyles,
+              }}
+            />
+            {showResult && (
+              <div className="result-backdrop" onClick={() => setDismissed(run.current)} data-testid="result-backdrop">
+                <div
+                  className={`result result-${status.state}`}
+                  role="dialog"
+                  aria-labelledby="result-title"
+                  data-testid="result"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <button type="button" className="result-close" aria-label="Close" title="Close" onClick={() => setDismissed(run.current)}>
+                    <X aria-hidden size={18} />
+                  </button>
+                  <h2 id="result-title">{status.state === 'won' ? 'Win!' : 'Lost'}</h2>
+                  <p className="description">{status.reason}</p>
+                  <dl className="stats">
+                    {typeof runTarget === 'number' && (
+                      <>
+                        <dt>Target</dt>
+                        <dd>{plural(runTarget)}</dd>
+                      </>
+                    )}
+                    <dt>Your moves</dt>
+                    <dd>{playerMoves}</dd>
+                  </dl>
+                  <button type="button" className="primary retry" onClick={restart}>
+                    <RotateCcw aria-hidden size={18} />
+                    Retry
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
           <p className="engine-params" data-testid="engine-params">
             {engineParams(identity, lastDepth)}
           </p>
