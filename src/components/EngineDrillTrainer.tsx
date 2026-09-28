@@ -1,9 +1,10 @@
 import { Chess } from 'chess.js'
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { Lightbulb, RotateCcw } from 'lucide-react'
 import { Chessboard, type PieceDropHandlerArgs, type PieceHandlerArgs, type SquareHandlerArgs } from 'react-chessboard'
 import { formatMoves, sideToMove } from '../drill/engine'
 import { goalLabel, goalStatus } from '../drill/goals'
-import { hasTarget, isCompleted, storesTarget, tracksBest, type DrillProgress } from '../drill/progress'
+import { hasTarget, storesTarget, summarize, tracksBest, type DrillProgress } from '../drill/progress'
 import { randomizePosition } from '../drill/randomize'
 import { computeTarget } from '../drill/targets'
 import { legalTargets } from '../drill/legalMoves'
@@ -13,6 +14,7 @@ import { getAnalysisEngine, getEngine } from '../engine/stockfish'
 import type { EngineIdentity } from '../engine/uci'
 import { captureRingStyle, hintStyle, lastMoveStyle, moveDotStyle, selectedStyle } from './boardStyles'
 import { EvalBar } from './EvalBar'
+import { Concept, IconButton } from './PanelParts'
 
 /** Think time for Stockfish's moves. */
 const ENGINE_MOVETIME_MS = 1000
@@ -56,7 +58,6 @@ export function EngineDrillTrainer({ drill, progress = null, onSolved, onTarget 
   const [moves, setMoves] = useState<string[]>([])
   /** The square of the piece Stockfish would move, for the position it was asked about. */
   const [hint, setHint] = useState<{ fen: string; square: string } | null>(null)
-  const [hintsUsed, setHintsUsed] = useState(0)
   const [engineError, setEngineError] = useState(false)
   const [selected, setSelected] = useState<string | null>(null)
   const [identity, setIdentity] = useState<EngineIdentity | null>(null)
@@ -86,15 +87,8 @@ export function EngineDrillTrainer({ drill, progress = null, onSolved, onTarget 
   const runTarget = storedTarget !== undefined ? storedTarget : searchedTarget?.fen === startFen ? searchedTarget.value : undefined
   // A randomized drill's best is measured against each run's target, so it needs one.
   const keepsBest = tracksBest(drill) && (!drill.randomize || hasTarget(drill))
-  const bestText = drill.randomize
-    ? progress?.bestOver === undefined
-      ? 'Not solved yet'
-      : progress.bestOver === 0
-        ? 'Matched Stockfish'
-        : `${plural(progress.bestOver)} over the target`
-    : progress?.best === undefined
-      ? 'Not solved yet'
-      : plural(progress.best)
+  /** Completed, the best result so far, or nothing when the drill was never solved. */
+  const best = summarize(progress)
   const hintSquare = hint?.fen === fen ? hint.square : null
   const targets = useMemo(() => (selected && playerToMove ? legalTargets(fen, selected) : []), [fen, selected, playerToMove])
 
@@ -218,7 +212,6 @@ export function EngineDrillTrainer({ drill, progress = null, onSolved, onTarget 
   function showHint() {
     const runId = run.current
     const hintFen = fen
-    setHintsUsed((n) => n + 1)
     getEngine()
       .search(hintFen, { movetime: HINT_MOVETIME_MS })
       .then(({ bestMove }) => {
@@ -231,7 +224,6 @@ export function EngineDrillTrainer({ drill, progress = null, onSolved, onTarget 
     run.current++
     setMoves([])
     setHint(null)
-    setHintsUsed(0)
     setSelected(null)
     setEngineError(false)
     setLastDepth(null)
@@ -291,19 +283,13 @@ export function EngineDrillTrainer({ drill, progress = null, onSolved, onTarget 
       </div>
       <aside className="panel">
         <h2>{drill.name}</h2>
-        <p className="description">{drill.description}</p>
+        <Concept text={drill.description} />
         <p className={`feedback feedback-${feedback.tone}`} role="status" data-testid="feedback">
           {feedback.text}
         </p>
         <dl className="stats">
           <dt>Goal</dt>
           <dd data-testid="goal">{goalLabel(drill.goal)}</dd>
-          {drill.randomize && (
-            <>
-              <dt>Position</dt>
-              <dd>Randomized</dd>
-            </>
-          )}
           {hasTarget(drill) && (
             <>
               <dt>Target</dt>
@@ -326,26 +312,21 @@ export function EngineDrillTrainer({ drill, progress = null, onSolved, onTarget 
             <>
               <dt>Best</dt>
               <dd data-testid="best">
-                {bestText}
-                {isCompleted(progress) && <span className="progress-tag completed">Completed</span>}
+                <span className={best?.completed ? 'progress-tag completed' : 'progress-tag'}>{best?.text ?? 'First time'}</span>
               </dd>
             </>
           )}
-          <dt>Opponent</dt>
-          <dd>Stockfish, best moves</dd>
-          <dt>Hints</dt>
-          <dd data-testid="hints">{hintsUsed}</dd>
         </dl>
         <p className="moves" data-testid="moves">
           {formatMoves(startFen ?? drill.fen, moves) || 'No moves played yet.'}
         </p>
         <div className="actions">
-          <button type="button" onClick={showHint} disabled={!playerToMove || engineError || hint?.fen === fen}>
-            Hint
-          </button>
-          <button type="button" onClick={restart}>
-            Restart
-          </button>
+          <IconButton label="Hint" onClick={showHint} disabled={!playerToMove || engineError || hint?.fen === fen}>
+            <Lightbulb aria-hidden size={20} />
+          </IconButton>
+          <IconButton label="Restart" onClick={restart}>
+            <RotateCcw aria-hidden size={20} />
+          </IconButton>
         </div>
       </aside>
     </section>

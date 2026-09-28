@@ -614,3 +614,31 @@ button.star:hover {
   color: var(--panel);
   font-weight: 600;
 }
+
+.concept {
+  margin: 0 0 16px;
+}
+
+.concept summary {
+  cursor: pointer;
+  color: var(--accent);
+  font-size: 0.9rem;
+  width: fit-content;
+}
+
+.concept .description {
+  margin: 8px 0 0;
+}
+
+.icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  width: 40px;
+  height: 40px;
+}
+
+.stats .progress-tag {
+  margin-left: 0;
+}
