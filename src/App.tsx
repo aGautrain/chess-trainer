@@ -1,4 +1,5 @@
 import { DrillTrainer } from './components/DrillTrainer'
+import { ReviewPanel } from './components/ReviewPanel'
 import { drills } from './drill/drills'
 
 export default function App() {
@@ -10,6 +11,7 @@ export default function App() {
         <p>Play the expected line from the setup. Moves are checked in your browser.</p>
       </header>
       <DrillTrainer drill={drill} />
+      <ReviewPanel drills={drills} />
     </main>
   )
 }
