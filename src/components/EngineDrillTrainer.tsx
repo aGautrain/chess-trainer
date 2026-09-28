@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { Lightbulb, RotateCcw, X } from 'lucide-react'
 import confetti from 'canvas-confetti'
 import { Chessboard, type PieceDropHandlerArgs, type PieceHandlerArgs, type SquareHandlerArgs } from 'react-chessboard'
-import { formatMoves, sideToMove } from '../drill/engine'
+import { sideToMove } from '../drill/engine'
 import { goalLabel, goalStatus } from '../drill/goals'
 import { hasTarget, storesTarget, summarize, tracksBest, type DrillProgress } from '../drill/progress'
 import { randomizePosition } from '../drill/randomize'
@@ -15,6 +15,7 @@ import { getAnalysisEngine, getEngine } from '../engine/stockfish'
 import type { EngineIdentity } from '../engine/uci'
 import { captureRingStyle, hintStyle, lastMoveStyle, moveDotStyle, selectedStyle } from './boardStyles'
 import { EvalBar } from './EvalBar'
+import { MoveHistory } from './MoveHistory'
 import { Concept, IconButton } from './PanelParts'
 import { useBoardPosition } from './useBoardPosition'
 
@@ -58,6 +59,10 @@ export function EngineDrillTrainer({ drill, progress = null, onSolved, onTarget 
   const [shuffle, setShuffle] = useState(0)
   /** Moves played from the drill position, in SAN. */
   const [moves, setMoves] = useState<string[]>([])
+  /** How many of those moves the board shows while stepping back through them; null follows the game. */
+  const [view, setView] = useState<number | null>(null)
+  /** Whether the player went back and played a different move this run, which keeps a win out of their best. */
+  const [tookBack, setTookBack] = useState(false)
   /** The square of the piece Stockfish would move, for the position it was asked about. */
   const [hint, setHint] = useState<{ fen: string; square: string } | null>(null)
   const [engineError, setEngineError] = useState(false)
@@ -65,27 +70,44 @@ export function EngineDrillTrainer({ drill, progress = null, onSolved, onTarget 
   const [identity, setIdentity] = useState<EngineIdentity | null>(null)
   /** Depth Stockfish reached on its last move. */
   const [lastDepth, setLastDepth] = useState<number | null>(null)
-  /** The run whose result card was closed, so it stays closed until the next run ends. */
-  const [dismissed, setDismissed] = useState(-1)
+  /** The moves of the finished game whose result card was closed, so it stays closed until a game ends differently. */
+  const [dismissed, setDismissed] = useState<string | null>(null)
   /** Stockfish's mate-in-N for the player from the position this run started from. */
   const [searchedTarget, setSearchedTarget] = useState<{ fen: string; value: number | null } | null>(null)
   /** Bumped on restart so late engine answers from the previous run are dropped. */
   const run = useRef(0)
 
   const shuffling = startFen === null
-  const game = useMemo(() => {
+  const shown = view ?? moves.length
+  /** True when the board shows the latest move rather than an earlier one. */
+  const live = shown === moves.length
+  const liveGame = useMemo(() => {
     const g = new Chess(startFen ?? drill.fen)
     for (const san of moves) g.move(san)
     return g
   }, [startFen, drill.fen, moves])
+  /** The position on the board, which is the live one unless the player stepped back. */
+  const game = useMemo(() => {
+    if (live) return liveGame
+    const g = new Chess(startFen ?? drill.fen)
+    for (const san of moves.slice(0, shown)) g.move(san)
+    return g
+  }, [live, liveGame, startFen, drill.fen, moves, shown])
   const fen = game.fen()
   const { position, onDropOffBoard } = useBoardPosition(fen)
-  const status = useMemo(() => goalStatus(game, drill.playerColor, drill.goal), [game, drill.playerColor, drill.goal])
+  const status = useMemo(() => goalStatus(liveGame, drill.playerColor, drill.goal), [liveGame, drill.playerColor, drill.goal])
   const over = !shuffling && status.state !== 'playing'
-  const lastMove = moves.length ? (game.history({ verbose: true }).at(-1) ?? null) : null
+  // An earlier position may be played from if the goal was still open there.
+  const shownOpen = useMemo(
+    () => (live ? status.state === 'playing' : goalStatus(game, drill.playerColor, drill.goal).state === 'playing'),
+    [live, status, game, drill.playerColor, drill.goal],
+  )
+  const lastMove = shown ? (game.history({ verbose: true }).at(-1) ?? null) : null
   const playerTurn = sideToMove(fen) === drill.playerColor
-  const playerToMove = !shuffling && !over && playerTurn
-  const playerMoves = game.history({ verbose: true }).filter((m) => m.color === drill.playerColor[0]).length
+  const playerToMove = !shuffling && shownOpen && playerTurn
+  const playerMoves = liveGame.history({ verbose: true }).filter((m) => m.color === drill.playerColor[0]).length
+  /** Identifies the game as played so far, for the result card. */
+  const gameKey = moves.join(' ')
   const solved = !shuffling && status.state === 'won'
   const storedTarget = storesTarget(drill) ? progress?.target : undefined
   /** Undefined while Stockfish is still searching this run's start. */
@@ -153,15 +175,15 @@ export function EngineDrillTrainer({ drill, progress = null, onSolved, onTarget 
 
   // Keep the result of a successful run, once, while it is the current run.
   // A randomized drill waits for its run's target, since its result is counted against it.
-  const showResult = over && dismissed !== run.current
+  const showResult = over && live && dismissed !== gameKey
 
   // Escape closes the result card.
   useEffect(() => {
     if (!showResult) return
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setDismissed(run.current)
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setDismissed(gameKey)
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [showResult])
+  }, [showResult, gameKey])
 
   // A win is celebrated once per run. Reduced-motion users get no confetti.
   const celebrated = useRef(-1)
@@ -174,19 +196,20 @@ export function EngineDrillTrainer({ drill, progress = null, onSolved, onTarget 
 
   const reported = useRef(-1)
   useEffect(() => {
-    if (!solved || reported.current === run.current) return
+    if (!solved || tookBack || reported.current === run.current) return
     if (drill.randomize && hasTarget(drill) && runTarget === undefined) return
     reported.current = run.current
     onSolved?.(playerMoves, runTarget ?? null)
-  }, [solved, playerMoves, onSolved, drill, runTarget])
+  }, [solved, tookBack, playerMoves, onSolved, drill, runTarget])
 
-  // Stockfish answers with its best move.
+  // Stockfish answers with its best move. Stepping back stops its search; it starts over on returning to the latest move.
   useEffect(() => {
-    if (shuffling || over || playerTurn || engineError) return
+    if (shuffling || over || !live || playerTurn || engineError) return
     const runId = run.current
     let cancelled = false
+    const abort = new AbortController()
     getEngine()
-      .search(fen, { movetime: ENGINE_MOVETIME_MS })
+      .search(fen, { movetime: ENGINE_MOVETIME_MS }, abort.signal)
       .then(({ bestMove, depth }) => {
         if (cancelled || runId !== run.current || !bestMove) return
         setLastDepth(depth)
@@ -196,15 +219,27 @@ export function EngineDrillTrainer({ drill, progress = null, onSolved, onTarget 
       .catch(() => runId === run.current && setEngineError(true))
     return () => {
       cancelled = true
+      abort.abort()
     }
-  }, [shuffling, over, playerTurn, engineError, fen])
+  }, [shuffling, over, live, playerTurn, engineError, fen])
 
+  /** Plays a move on the shown position; from an earlier position, the moves after it are dropped. */
   function tryMove(from: string, to: string): boolean {
     // Promotions always make a queen.
     const played = playUci(fen, `${from}${to}q`) ?? playUci(fen, `${from}${to}`)
     if (!played) return false
-    setMoves((m) => [...m, played.move.san])
+    if (!live) setTookBack(true)
+    setMoves([...moves.slice(0, shown), played.move.san])
+    setView(null)
     return true
+  }
+
+  /** Shows the position after the first `n` moves; the latest one returns to the game. */
+  function showMove(n: number) {
+    const clamped = Math.max(0, Math.min(moves.length, n))
+    setView(clamped === moves.length ? null : clamped)
+    setSelected(null)
+    if (over) setDismissed(gameKey)
   }
 
   function selectable(square: string): boolean {
@@ -251,6 +286,9 @@ export function EngineDrillTrainer({ drill, progress = null, onSolved, onTarget 
   function restart() {
     run.current++
     setMoves([])
+    setView(null)
+    setTookBack(false)
+    setDismissed(null)
     setHint(null)
     setSelected(null)
     setEngineError(false)
@@ -264,6 +302,9 @@ export function EngineDrillTrainer({ drill, progress = null, onSolved, onTarget 
   let feedback: Feedback
   if (shuffling) {
     feedback = { tone: 'info', text: 'Shuffling the pieces…' }
+  } else if (!live) {
+    const where = shown === 0 ? 'the start position' : `move ${shown} of ${moves.length}`
+    feedback = { tone: 'info', text: `Viewing ${where}. ${playerToMove ? 'Play a move to continue from here, or' : 'Press'} → to go forward.` }
   } else if (status.state !== 'playing') {
     feedback = { tone: status.state === 'won' ? 'done' : 'bad', text: status.reason }
   } else if (engineError) {
@@ -306,7 +347,7 @@ export function EngineDrillTrainer({ drill, progress = null, onSolved, onTarget 
               }}
             />
             {showResult && (
-              <div className="result-backdrop" onClick={() => setDismissed(run.current)} data-testid="result-backdrop">
+              <div className="result-backdrop" onClick={() => setDismissed(gameKey)} data-testid="result-backdrop">
                 <div
                   className={`result result-${status.state}`}
                   role="dialog"
@@ -314,11 +355,16 @@ export function EngineDrillTrainer({ drill, progress = null, onSolved, onTarget 
                   data-testid="result"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <button type="button" className="result-close" aria-label="Close" title="Close" onClick={() => setDismissed(run.current)}>
+                  <button type="button" className="result-close" aria-label="Close" title="Close" onClick={() => setDismissed(gameKey)}>
                     <X aria-hidden size={18} />
                   </button>
                   <h2 id="result-title">{status.state === 'won' ? 'Win!' : 'Lost'}</h2>
                   <p className="description">{status.reason}</p>
+                  {solved && tookBack && tracksBest(drill) && (
+                    <p className="description" data-testid="took-back">
+                      You took moves back, so this win does not count toward your best.
+                    </p>
+                  )}
                   <dl className="stats">
                     {typeof runTarget === 'number' && (
                       <>
@@ -378,9 +424,7 @@ export function EngineDrillTrainer({ drill, progress = null, onSolved, onTarget 
             </>
           )}
         </dl>
-        <p className="moves" data-testid="moves">
-          {formatMoves(startFen ?? drill.fen, moves) || 'No moves played yet.'}
-        </p>
+        <MoveHistory fen={startFen ?? drill.fen} moves={moves} shown={shown} onShow={showMove} />
         <div className="actions">
           <IconButton label="Hint" onClick={showHint} disabled={!playerToMove || engineError || hint?.fen === fen}>
             <Lightbulb aria-hidden size={20} />

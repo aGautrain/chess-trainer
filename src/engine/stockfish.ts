@@ -107,10 +107,17 @@ export class StockfishEngine {
     })
   }
 
-  /** Searches `fen` and returns the best move with its evaluation. */
-  search(fen: string, limits: SearchLimits = { depth: 12 }): Promise<SearchResult> {
+  /**
+   * Searches `fen` and returns the best move with its evaluation.
+   * Aborting `signal` skips a search that has not started and stops a running one early; the caller should ignore its result.
+   */
+  search(fen: string, limits: SearchLimits = { depth: 12 }, signal?: AbortSignal): Promise<SearchResult> {
     return this.enqueue(async () => {
       await this.ready
+      if (signal?.aborted) return { bestMove: null, score: { kind: 'cp', value: 0 }, depth: 0, pv: [] }
+      // UCI `stop` makes Stockfish answer with its bestmove at once, which ends this search's wait below.
+      const stop = () => this.worker.postMessage('stop')
+      signal?.addEventListener('abort', stop, { once: true })
       let last: InfoLine | null = null
       let bestMove: string | null = null
       const go = limits.depth ? `go depth ${limits.depth}` : `go movetime ${limits.movetime ?? 500}`
@@ -124,7 +131,7 @@ export class StockfishEngine {
           return true
         },
         [`position fen ${fen}`, go],
-      )
+      ).finally(() => signal?.removeEventListener('abort', stop))
       const final = last as InfoLine | null
       return {
         bestMove,

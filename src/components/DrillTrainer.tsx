@@ -2,7 +2,7 @@ import { Chess } from 'chess.js'
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { Lightbulb, RotateCcw } from 'lucide-react'
 import { Chessboard, type PieceDropHandlerArgs, type PieceHandlerArgs, type SquareHandlerArgs } from 'react-chessboard'
-import { attemptMove, expectedMove, formatLine, positionAt, sideToMove } from '../drill/engine'
+import { attemptMove, expectedMove, sideToMove } from '../drill/engine'
 import { legalTargets } from '../drill/legalMoves'
 import type { LineDrill } from '../drill/types'
 import { judgeMove, type MoveJudgement } from '../engine/judge'
@@ -11,6 +11,7 @@ import { getEngine } from '../engine/stockfish'
 import { formatScore } from '../engine/uci'
 import { captureRingStyle, hintStyle, lastMoveStyle, moveDotStyle, selectedStyle } from './boardStyles'
 import { EvalBar } from './EvalBar'
+import { MoveHistory } from './MoveHistory'
 import { Concept, IconButton } from './PanelParts'
 import { useBoardPosition } from './useBoardPosition'
 
@@ -45,43 +46,52 @@ export function DrillTrainer({ drill }: { drill: LineDrill }) {
   const [engineError, setEngineError] = useState(false)
   /** Moves played against Stockfish after the line ends, in SAN; null until the user chooses to play on. */
   const [sparring, setSparring] = useState<string[] | null>(null)
+  /** How many moves the board shows while stepping back through them; null follows the game. */
+  const [view, setView] = useState<number | null>(null)
+  /** The view a move was last tried in, so its feedback shows there instead of the viewing note. */
+  const [feedbackView, setFeedbackView] = useState<number | null>(null)
   // Square of the piece picked up by click or drag; its legal moves are shown on the board.
   const [selected, setSelected] = useState<string | null>(null)
   /** Bumped on restart so late engine answers from the previous run are dropped. */
   const run = useRef(0)
 
+  /** Every move played: the line so far, then the moves against Stockfish. */
+  const history = useMemo(() => [...drill.line.slice(0, ply), ...(sparring ?? [])], [drill, ply, sparring])
+  const shown = view ?? history.length
+  /** True when the board shows the latest move rather than an earlier one. */
+  const live = shown === history.length
+  /** The position on the board, which is the live one unless the player stepped back. */
   const game = useMemo(() => {
-    const g = positionAt(drill, ply)
-    for (const san of sparring ?? []) g.move(san)
+    const g = new Chess(drill.fen)
+    for (const san of history.slice(0, shown)) g.move(san)
     return g
-  }, [drill, ply, sparring])
+  }, [drill.fen, history, shown])
   const fen = game.fen()
   const { position, onDropOffBoard } = useBoardPosition(fen)
-  const expected = useMemo(() => expectedMove(drill, ply), [drill, ply])
-  const lastMove = useMemo(() => {
-    if (sparring?.length) return game.history({ verbose: true }).at(-1) ?? null
-    return ply > 0 ? expectedMove(drill, ply - 1) : null
-  }, [drill, ply, sparring, game])
-  const finished = expected === null
+  /** The line's move at the shown position, or null past the end of the line. */
+  const expected = useMemo(() => expectedMove(drill, shown), [drill, shown])
+  const lastMove = shown ? (game.history({ verbose: true }).at(-1) ?? null) : null
+  const finished = ply >= drill.line.length
   const gameOver = game.isGameOver()
   const playerTurn = sideToMove(fen) === drill.playerColor
-  const playerToMove = !checking && !gameOver && playerTurn && (!finished || sparring !== null)
+  const playerToMove = !checking && !gameOver && playerTurn && (expected !== null || sparring !== null)
   const targets = useMemo(() => (selected && playerToMove ? legalTargets(fen, selected) : []), [fen, selected, playerToMove])
 
   // Play the opponent's reply from the line automatically.
   useEffect(() => {
-    if (finished || playerTurn) return
+    if (!live || finished || playerTurn) return
     const timer = setTimeout(() => setPly((p) => p + 1), OPPONENT_DELAY_MS)
     return () => clearTimeout(timer)
-  }, [finished, playerTurn, ply])
+  }, [live, finished, playerTurn, ply])
 
-  // After the line, Stockfish plays the opponent.
+  // After the line, Stockfish plays the opponent. Stepping back stops its search; it starts over on returning to the latest move.
   useEffect(() => {
-    if (sparring === null || playerTurn || gameOver) return
+    if (!live || sparring === null || playerTurn || gameOver) return
     const runId = run.current
     let cancelled = false
+    const abort = new AbortController()
     getEngine()
-      .search(fen, { movetime: OPPONENT_MOVETIME_MS })
+      .search(fen, { movetime: OPPONENT_MOVETIME_MS }, abort.signal)
       .then(({ bestMove }) => {
         if (cancelled || runId !== run.current || !bestMove) return
         const played = playUci(fen, bestMove)
@@ -90,8 +100,9 @@ export function DrillTrainer({ drill }: { drill: LineDrill }) {
       .catch(() => setEngineError(true))
     return () => {
       cancelled = true
+      abort.abort()
     }
-  }, [sparring, playerTurn, gameOver, fen])
+  }, [live, sparring, playerTurn, gameOver, fen])
 
   /** Asks Stockfish about a move and reports back, unless the drill was restarted meanwhile. */
   function judge(fenBefore: string, uci: string, fenAfter: string, onResult: (j: MoveJudgement) => void, onError: () => void) {
@@ -105,11 +116,15 @@ export function DrillTrainer({ drill }: { drill: LineDrill }) {
       })
   }
 
-  /** Plays `from`-`to` against the drill line, or against Stockfish after it; returns whether the board should keep the move. */
+  /**
+   * Plays `from`-`to` on the shown position, against the drill line or against Stockfish after it; returns whether the
+   * board should keep the move. A move kept from an earlier position drops the moves after it.
+   */
   function tryMove(from: string, to: string): boolean {
-    if (sparring !== null) return playOn(from, to)
+    setFeedbackView(view)
+    if (expected === null) return playOn(from, to)
 
-    const result = attemptMove(drill, ply, { from, to })
+    const result = attemptMove(drill, shown, { from, to })
     switch (result.kind) {
       case 'illegal':
         return false
@@ -149,7 +164,9 @@ export function DrillTrainer({ drill }: { drill: LineDrill }) {
       case 'correct':
         setHint(false)
         setFeedback({ tone: 'good', text: `${result.san} is correct.` })
-        setPly(ply + 1)
+        setPly(shown + 1)
+        setSparring(null)
+        setView(null)
         return true
     }
   }
@@ -190,7 +207,8 @@ export function DrillTrainer({ drill }: { drill: LineDrill }) {
     const played = playUci(fen, `${from}${to}q`) ?? playUci(fen, `${from}${to}`)
     if (!played) return false
     const { move } = played
-    setSparring((moves) => [...(moves ?? []), move.san])
+    setSparring([...(sparring ?? []).slice(0, shown - ply), move.san])
+    setView(null)
     setFeedback({ tone: 'info', text: `${move.san} played. Stockfish is judging it…` })
     judge(
       fen,
@@ -209,6 +227,7 @@ export function DrillTrainer({ drill }: { drill: LineDrill }) {
     setHint(false)
     setChecking(false)
     setSparring(null)
+    setView(null)
     setSelected(null)
     setFeedback({ tone: 'info', text: 'Your move.' })
   }
@@ -217,8 +236,19 @@ export function DrillTrainer({ drill }: { drill: LineDrill }) {
     setHint(true)
   }
 
+  /** Shows the position after the first `n` moves; the latest one returns to the game. */
+  function showMove(n: number) {
+    const clamped = Math.max(0, Math.min(history.length, n))
+    setView(clamped === history.length ? null : clamped)
+    setSelected(null)
+    setHint(false)
+  }
+
   let shownFeedback: Feedback = feedback
-  if (finished && sparring === null) {
+  if (!live && feedbackView !== view) {
+    const where = shown === 0 ? 'the start position' : `move ${shown} of ${history.length}`
+    shownFeedback = { tone: 'info', text: `Viewing ${where}. ${playerToMove ? 'Play a move to continue from here, or' : 'Press'} → to go forward.` }
+  } else if (finished && sparring === null) {
     const summary =
       mistakes === 0 ? 'Line complete with no mistakes!' : `Line complete with ${mistakes} mistake${mistakes === 1 ? '' : 's'}.`
     shownFeedback = { tone: 'done', text: summary }
@@ -276,17 +306,14 @@ export function DrillTrainer({ drill }: { drill: LineDrill }) {
           <dt>Mistakes</dt>
           <dd data-testid="mistakes">{mistakes}</dd>
         </dl>
-        <p className="moves" data-testid="moves">
-          {formatLine(drill, ply) || 'No moves played yet.'}
-          {sparring?.length ? ` | ${sparring.join(' ')}` : ''}
-        </p>
+        <MoveHistory fen={drill.fen} moves={history} shown={shown} onShow={showMove} lineEnd={sparring?.length ? ply : undefined} />
         <div className="actions">
           {finished && sparring === null ? (
-            <button type="button" onClick={() => setSparring([])} disabled={gameOver}>
+            <button type="button" onClick={() => setSparring([])} disabled={!live || gameOver}>
               Play on vs Stockfish
             </button>
           ) : (
-            <IconButton label="Hint" onClick={showHint} disabled={finished || !playerToMove || hint}>
+            <IconButton label="Hint" onClick={showHint} disabled={expected === null || !playerToMove || hint}>
               <Lightbulb aria-hidden size={20} />
             </IconButton>
           )}
