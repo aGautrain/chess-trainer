@@ -1,12 +1,15 @@
+import type { DrillProgress } from '../drill/progress'
 import type { Drill } from '../drill/types'
 import { drillMeta } from './drillMeta'
 import { DrillActions } from './MyDrills'
+import { ProgressTag } from './ProgressTag'
 import { StarButton } from './StarButton'
 
 interface Props {
   drills: Drill[]
   isStarred: (drill: Drill) => boolean
   isCustom: (drill: Drill) => boolean
+  progressOf: (drill: Drill) => DrillProgress | null
   onPlay: (drill: Drill) => void
   onToggleStar: (drill: Drill) => void
   onNew: () => void
@@ -15,7 +18,7 @@ interface Props {
 }
 
 /** Every drill, built-in and user-made, as cards to open or star into My drills. */
-export function LibraryPage({ drills, isStarred, isCustom, onPlay, onToggleStar, onNew, onEdit, onDelete }: Props) {
+export function LibraryPage({ drills, isStarred, isCustom, progressOf, onPlay, onToggleStar, onNew, onEdit, onDelete }: Props) {
   return (
     <section aria-labelledby="library-title">
       <div className="library-head page-head">
@@ -32,7 +35,10 @@ export function LibraryPage({ drills, isStarred, isCustom, onPlay, onToggleStar,
           <li key={drill.id} className="drill-card">
             <button type="button" className="drill-card-open" onClick={() => onPlay(drill)} aria-label={`Play ${drill.name}`}>
               <span className="drill-card-name">{drill.name}</span>
-              <span className="drill-meta">{drillMeta(drill)}</span>
+              <span className="drill-meta">
+                {drillMeta(drill)}
+                <ProgressTag progress={progressOf(drill)} />
+              </span>
               {drill.description && <span className="drill-card-description">{drill.description}</span>}
               <span className="drill-card-source">{isCustom(drill) ? 'Made by you' : 'Built-in'}</span>
             </button>

@@ -155,3 +155,11 @@ export function getEngine(): StockfishEngine {
   shared ??= new StockfishEngine()
   return shared
 }
+
+let analysis: StockfishEngine | null = null
+
+/** A second engine for long background searches, so they never hold up the moves of the game being played. */
+export function getAnalysisEngine(): StockfishEngine {
+  analysis ??= new StockfishEngine()
+  return analysis
+}
