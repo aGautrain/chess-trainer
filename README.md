@@ -55,6 +55,16 @@ Finishing a drill schedules its next review with a small SM-2 scheduler (`src/re
 
 The **Reviews** list under the board shows each drill with when it is next due.
 
+## Custom drills
+
+Click **New drill** to create your own:
+
+- **Starting position**: a FEN, or leave it empty for the standard starting position. A full PGN with a `[FEN]` header works too.
+- **Line to drill**: PGN movetext (`1. e4 c5 2. Nf3 d6`), bare SAN (`e4 c5 Nf3`) or a pasted PGN. Comments, NAGs and variations are ignored; only the main line is kept.
+- **Play as**: White, Black, or the side to move.
+
+The position and every move are validated with chess.js as you type, with the first problem shown under its field. Saved drills are stored in your browser's `localStorage` (key `chess-trainer.customDrills.v1`), listed under **My drills**, and can be edited or deleted there. They stay on this device and browser only. Parsing lives in `src/drill/importer.ts` and storage in `src/drill/storage.ts`.
+
 ## Deploying to GitHub Pages
 
 `.github/workflows/deploy.yml` lints, tests and builds on every pull request, and deploys `dist/` to GitHub Pages on every push to `main`.
