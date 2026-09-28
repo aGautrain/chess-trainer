@@ -4,12 +4,10 @@ import { DrillTrainer } from './components/DrillTrainer'
 import { EngineDrillTrainer } from './components/EngineDrillTrainer'
 import { LibraryPage } from './components/LibraryPage'
 import { MyDrills } from './components/MyDrills'
-import { ReviewPanel } from './components/ReviewPanel'
 import { drills as builtInDrills } from './drill/drills'
 import { loadFavorites, saveFavorites, toggleFavorite } from './drill/favorites'
 import { loadCustomDrills, newDrillId, saveCustomDrills } from './drill/storage'
 import type { Drill } from './drill/types'
-import { reviews } from './review/useReviews'
 import { useHashPage } from './useHashPage'
 
 type View = { kind: 'play' } | { kind: 'edit'; drill?: Drill; id: string }
@@ -65,7 +63,6 @@ export default function App() {
   function remove(drill: Drill) {
     updateCustom(customDrills.filter((d) => d.id !== drill.id))
     if (favorites.includes(drill.id)) updateFavorites(favorites.filter((id) => id !== drill.id))
-    reviews.remove(drill.id)
     if (selectedId === drill.id) setSelectedId(builtInDrills[0].id)
     if (view.kind === 'edit' && view.id === drill.id) setView({ kind: 'play' })
   }
@@ -132,7 +129,6 @@ export default function App() {
                 )
               )}
             </div>
-            <ReviewPanel drills={allDrills} onSelect={play} />
           </>
         )}
       </main>

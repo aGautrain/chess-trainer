@@ -45,16 +45,6 @@ Drills live in `src/drill/drills.ts`:
 
 Code: `src/engine/stockfish.ts` (UCI over the worker), `src/engine/judge.ts` (classification).
 
-## Spaced review
-
-Finishing a drill schedules its next review with a small SM-2 scheduler (`src/review/scheduler.ts`), stored in `localStorage` under `chess-trainer:reviews:v1`.
-
-- Any mistake: *again*, due in 10 minutes and the interval resets.
-- No mistakes but a hint or a sound off-line move: *hard*, the interval grows slowly.
-- Clean run: *good*, intervals go 1, 6, then about 2.5× each time.
-
-The **Reviews** list under the board shows each drill with when it is next due.
-
 ## Custom drills
 
 Click **New drill** to create your own:

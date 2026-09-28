@@ -8,9 +8,6 @@ import { judgeMove, type MoveJudgement } from '../engine/judge'
 import { playUci, uciToSan } from '../engine/moves'
 import { getEngine } from '../engine/stockfish'
 import { formatScore } from '../engine/uci'
-import { formatDue } from '../review/format'
-import { gradeFromRun } from '../review/scheduler'
-import { useNow, useReviews } from '../review/useReviews'
 import { captureRingStyle, hintStyle, lastMoveStyle, moveDotStyle, selectedStyle } from './boardStyles'
 import { EvalBar } from './EvalBar'
 
@@ -39,8 +36,6 @@ export function DrillTrainer({ drill }: { drill: LineDrill }) {
   const [ply, setPly] = useState(0)
   const [mistakes, setMistakes] = useState(0)
   const [hint, setHint] = useState(false)
-  const [hintsUsed, setHintsUsed] = useState(0)
-  const [offBookMoves, setOffBookMoves] = useState(0)
   const [feedback, setFeedback] = useState<Feedback>({ tone: 'info', text: 'Your move.' })
   /** True while Stockfish judges an off-line move; the board is locked meanwhile. */
   const [checking, setChecking] = useState(false)
@@ -51,10 +46,6 @@ export function DrillTrainer({ drill }: { drill: LineDrill }) {
   const [selected, setSelected] = useState<string | null>(null)
   /** Bumped on restart so late engine answers from the previous run are dropped. */
   const run = useRef(0)
-  /** The run whose result was last written to the review schedule. */
-  const recordedRun = useRef(-1)
-  const reviews = useReviews()
-  const now = useNow()
 
   const game = useMemo(() => {
     const g = positionAt(drill, ply)
@@ -79,13 +70,6 @@ export function DrillTrainer({ drill }: { drill: LineDrill }) {
     const timer = setTimeout(() => setPly((p) => p + 1), OPPONENT_DELAY_MS)
     return () => clearTimeout(timer)
   }, [finished, playerTurn, ply])
-
-  // Once the line is complete, schedule the drill's next review.
-  useEffect(() => {
-    if (!finished || recordedRun.current === run.current) return
-    recordedRun.current = run.current
-    reviews.record(drill.id, gradeFromRun({ mistakes, hintsUsed, offBookMoves }))
-  }, [finished, reviews, drill.id, mistakes, hintsUsed, offBookMoves])
 
   // After the line, Stockfish plays the opponent.
   useEffect(() => {
@@ -145,7 +129,6 @@ export function DrillTrainer({ drill }: { drill: LineDrill }) {
           (j) => {
             setChecking(false)
             if (j.acceptable) {
-              setOffBookMoves((n) => n + 1)
               setFeedback({ tone: 'info', text: `${describe(result.san, j, fen)} It is not the line though, try again.` })
             } else {
               setMistakes((m) => m + 1)
@@ -216,8 +199,6 @@ export function DrillTrainer({ drill }: { drill: LineDrill }) {
     setPly(0)
     setMistakes(0)
     setHint(false)
-    setHintsUsed(0)
-    setOffBookMoves(0)
     setChecking(false)
     setSparring(null)
     setSelected(null)
@@ -226,16 +207,13 @@ export function DrillTrainer({ drill }: { drill: LineDrill }) {
 
   function showHint() {
     setHint(true)
-    setHintsUsed((n) => n + 1)
   }
 
   let shownFeedback: Feedback = feedback
   if (finished && sparring === null) {
     const summary =
       mistakes === 0 ? 'Line complete with no mistakes!' : `Line complete with ${mistakes} mistake${mistakes === 1 ? '' : 's'}.`
-    const card = reviews.get(drill.id)
-    const next = card ? ` Next review ${formatDue(card.due, now)}.` : ''
-    shownFeedback = { tone: 'done', text: summary + next }
+    shownFeedback = { tone: 'done', text: summary }
   } else if (gameOver) {
     const text = game.isCheckmate()
       ? `Checkmate. ${playerTurn ? 'Stockfish wins.' : 'You win!'}`
