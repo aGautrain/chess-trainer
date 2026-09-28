@@ -11,6 +11,7 @@ import { formatScore } from '../engine/uci'
 import { formatDue } from '../review/format'
 import { gradeFromRun } from '../review/scheduler'
 import { useNow, useReviews } from '../review/useReviews'
+import { EvalBar } from './EvalBar'
 
 const OPPONENT_DELAY_MS = 400
 /** Think time for Stockfish's replies once the line is over. */
@@ -266,21 +267,24 @@ export function DrillTrainer({ drill }: { drill: Drill }) {
 
   return (
     <section className="trainer">
-      <div className="board">
-        <Chessboard
-          options={{
-            id: drill.id,
-            position: fen,
-            boardOrientation: drill.playerColor,
-            onPieceDrag,
-            onPieceDrop,
-            onPieceDragCancel: () => setSelected(null),
-            onSquareClick,
-            canDragPiece: ({ square }) => square !== null && selectable(square),
-            allowDragging: playerToMove,
-            squareStyles,
-          }}
-        />
+      <div className="board-area">
+        <EvalBar fen={fen} orientation={drill.playerColor} />
+        <div className="board">
+          <Chessboard
+            options={{
+              id: drill.id,
+              position: fen,
+              boardOrientation: drill.playerColor,
+              onPieceDrag,
+              onPieceDrop,
+              onPieceDragCancel: () => setSelected(null),
+              onSquareClick,
+              canDragPiece: ({ square }) => square !== null && selectable(square),
+              allowDragging: playerToMove,
+              squareStyles,
+            }}
+          />
+        </div>
       </div>
       <aside className="panel">
         <h2>{drill.name}</h2>
