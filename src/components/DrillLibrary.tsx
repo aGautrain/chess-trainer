@@ -1,3 +1,4 @@
+import { goalLabel } from '../drill/goals'
 import type { Drill } from '../drill/types'
 
 interface Props {
@@ -16,7 +17,8 @@ export function DrillLibrary({ builtIn, custom, selectedId, onSelect, onNew, onE
       <button type="button" className="drill-name" onClick={() => onSelect(drill)} aria-current={drill.id === selectedId}>
         {drill.name}
         <span className="drill-meta">
-          {drill.line.length} moves · as {drill.playerColor}
+          {drill.mode === 'engine' ? `Engine · ${goalLabel(drill.goal).toLowerCase()}` : `Line · ${drill.line.length} moves`} · as{' '}
+          {drill.playerColor}
         </span>
       </button>
       {editable && (
@@ -51,7 +53,7 @@ export function DrillLibrary({ builtIn, custom, selectedId, onSelect, onNew, onE
       <ul>{builtIn.map((d) => item(d, false))}</ul>
       <h3>My drills</h3>
       {custom.length === 0 ? (
-        <p className="empty">No custom drills yet. Create one from a FEN or a PGN line.</p>
+        <p className="empty">No custom drills yet. Create a line drill from a FEN or a PGN, or an engine drill from a position you set up.</p>
       ) : (
         <ul data-testid="custom-drills">{custom.map((d) => item(d, true))}</ul>
       )}

@@ -1,7 +1,8 @@
-import type { Drill } from './types'
+import type { Drill, LineDrill } from './types'
 
-export const italianGame: Drill = {
+export const italianGame: LineDrill = {
   id: 'italian-giuoco-piano',
+  mode: 'line',
   name: 'Italian Game: Giuoco Piano main line',
   description:
     'After 1.e4 e5 2.Nf3 Nc6, play the classical c3 and d4 plan as White and meet the Bb4+ check.',

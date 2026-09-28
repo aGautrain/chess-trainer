@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { drills, italianGame } from './drills'
 import { attemptMove, expectedMove, formatLine, sideToMove, validateDrill } from './engine'
-import type { Drill } from './types'
+import type { LineDrill } from './types'
 
 describe('drills', () => {
   it.each(drills.map((d) => [d.id, d] as const))('%s has a legal line', (_, drill) => {
@@ -31,8 +31,9 @@ describe('attemptMove', () => {
   })
 
   it('uses the promotion piece from the line', () => {
-    const drill: Drill = {
+    const drill: LineDrill = {
       id: 'underpromo',
+      mode: 'line',
       name: '',
       description: '',
       fen: '8/1P6/8/8/8/8/k7/2K5 w - - 0 1',

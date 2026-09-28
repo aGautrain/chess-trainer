@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { DrillEditor } from './components/DrillEditor'
 import { DrillLibrary } from './components/DrillLibrary'
 import { DrillTrainer } from './components/DrillTrainer'
+import { EngineDrillTrainer } from './components/EngineDrillTrainer'
 import { ReviewPanel } from './components/ReviewPanel'
 import { drills as builtInDrills } from './drill/drills'
 import { loadCustomDrills, newDrillId, saveCustomDrills } from './drill/storage'
@@ -47,7 +48,7 @@ export default function App() {
     <main>
       <header>
         <h1>Chess Trainer</h1>
-        <p>Play the expected line from the setup. Moves are checked in your browser.</p>
+        <p>Play the expected line from a setup, or play a position out against Stockfish. Everything runs in your browser.</p>
       </header>
       {saveFailed && (
         <p className="warning" role="alert">
@@ -68,7 +69,11 @@ export default function App() {
           <DrillEditor key={view.id} drill={view.drill} id={view.id} onSave={save} onCancel={() => setView({ kind: 'play' })} />
         ) : (
           // Keyed by content so switching or editing a drill starts it fresh.
-          <DrillTrainer key={`${selected.id}:${selected.fen}:${selected.line.join(' ')}`} drill={selected} />
+          selected.mode === 'engine' ? (
+            <EngineDrillTrainer key={`${selected.id}:${selected.fen}:${selected.playerColor}:${JSON.stringify(selected.goal)}`} drill={selected} />
+          ) : (
+            <DrillTrainer key={`${selected.id}:${selected.fen}:${selected.line.join(' ')}`} drill={selected} />
+          )
         )}
       </div>
       <ReviewPanel drills={allDrills} onSelect={play} />

@@ -2,11 +2,19 @@ import { useId, useMemo, useState, type FormEvent } from 'react'
 import { Chessboard } from 'react-chessboard'
 import { DEFAULT_POSITION, validateFen } from 'chess.js'
 import { formatLine } from '../drill/engine'
+import { GOAL_PIECES, PIECE_NAMES, goalLabel } from '../drill/goals'
 import { buildDrill, drillToInput, type DrillInput } from '../drill/importer'
-import type { Drill } from '../drill/types'
+import { setupTurn, withTurn } from '../drill/setup'
+import type { Drill, DrillMode, EngineGoal, GoalPiece } from '../drill/types'
 import { NeutralEvalBar } from './EvalBar'
+import { SetupBoard } from './SetupBoard'
 
-const emptyInput: DrillInput = { name: '', description: '', fen: '', moves: '', playerColor: 'auto' }
+const emptyInput: DrillInput = { name: '', description: '', fen: '', moves: '', playerColor: 'auto', mode: 'line', goal: { kind: 'checkmate' } }
+
+const MODES: { mode: DrillMode; label: string; hint: string }[] = [
+  { mode: 'line', label: 'Line drill', hint: 'Play an exact line of moves from the position.' },
+  { mode: 'engine', label: 'Engine drill', hint: 'Play the position out against Stockfish until a goal is met.' },
+]
 
 interface Props {
   /** The drill being edited, or undefined for a new one. */
@@ -17,13 +25,15 @@ interface Props {
 }
 
 export function DrillEditor({ drill, id, onSave, onCancel }: Props) {
-  const [input, setInput] = useState<DrillInput>(() => (drill ? drillToInput(drill) : emptyInput))
+  const [input, setInput] = useState<DrillInput>(() => (drill ? { ...emptyInput, ...drillToInput(drill) } : emptyInput))
   const [submitted, setSubmitted] = useState(false)
   const result = useMemo(() => buildDrill(input, id), [input, id])
   const fieldId = useId()
 
+  const engineMode = input.mode === 'engine'
+  const goal: EngineGoal = input.goal ?? { kind: 'checkmate' }
   // Position and move errors show as soon as there is something to check; a missing name waits for Save.
-  const touched = input.fen.trim() !== '' || input.moves.trim() !== ''
+  const touched = input.fen.trim() !== '' || input.moves.trim() !== '' || engineMode
   const error = !result.ok && (submitted || (touched && result.field !== 'name')) ? result : null
 
   const previewFen = result.ok
@@ -31,7 +41,13 @@ export function DrillEditor({ drill, id, onSave, onCancel }: Props) {
     : input.fen.trim() && validateFen(input.fen.trim()).ok
       ? input.fen.trim()
       : DEFAULT_POSITION
-  const orientation = result.ok ? result.drill.playerColor : input.playerColor === 'black' ? 'black' : 'white'
+  const orientation = result.ok
+    ? result.drill.playerColor
+    : input.playerColor === 'auto'
+      ? engineMode
+        ? setupTurn(input.fen)
+        : 'white'
+      : input.playerColor
 
   function set<K extends keyof DrillInput>(key: K, value: DrillInput[K]) {
     setInput((prev) => ({ ...prev, [key]: value }))
@@ -55,11 +71,26 @@ export function DrillEditor({ drill, id, onSave, onCancel }: Props) {
       <div className="board-area">
         <NeutralEvalBar orientation={orientation} />
         <div className="board">
-          <Chessboard options={{ id: `preview-${id}`, position: previewFen, boardOrientation: orientation, allowDragging: false }} />
+          {engineMode ? (
+            <SetupBoard id={`setup-${id}`} fen={input.fen} orientation={orientation} onChange={(fen) => set('fen', fen)} />
+          ) : (
+            <Chessboard options={{ id: `preview-${id}`, position: previewFen, boardOrientation: orientation, allowDragging: false }} />
+          )}
         </div>
       </div>
       <form className="panel editor" onSubmit={submit} noValidate>
         <h2>{drill ? 'Edit drill' : 'New drill'}</h2>
+
+        <fieldset className="side mode">
+          <legend>Kind of drill</legend>
+          {MODES.map(({ mode, label }) => (
+            <label key={mode}>
+              <input type="radio" name={`${fieldId}-mode`} checked={input.mode === mode} onChange={() => set('mode', mode)} />
+              {label}
+            </label>
+          ))}
+          <p className="hint">{MODES.find((m) => m.mode === input.mode)?.hint}</p>
+        </fieldset>
 
         <label htmlFor={`${fieldId}-name`}>Name</label>
         <input
@@ -74,30 +105,80 @@ export function DrillEditor({ drill, id, onSave, onCancel }: Props) {
         <label htmlFor={`${fieldId}-description`}>Description (optional)</label>
         <input id={`${fieldId}-description`} value={input.description} onChange={(e) => set('description', e.target.value)} />
 
-        <label htmlFor={`${fieldId}-fen`}>Starting position (FEN, optional)</label>
+        <label htmlFor={`${fieldId}-fen`}>{engineMode ? 'Position (FEN)' : 'Starting position (FEN, optional)'}</label>
         <input
           id={`${fieldId}-fen`}
           className="mono"
           value={input.fen}
           onChange={(e) => set('fen', e.target.value)}
-          placeholder="Leave empty for the standard starting position"
+          placeholder={engineMode ? 'Set up the board, or paste a FEN' : 'Leave empty for the standard starting position'}
           spellCheck={false}
           aria-invalid={error?.field === 'fen'}
         />
         {errorFor('fen')}
 
-        <label htmlFor={`${fieldId}-moves`}>Line to drill (PGN)</label>
-        <textarea
-          id={`${fieldId}-moves`}
-          className="mono"
-          rows={5}
-          value={input.moves}
-          onChange={(e) => set('moves', e.target.value)}
-          placeholder={'1. e4 c5 2. Nf3 d6 3. d4 cxd4\n\nMove text or a full PGN; comments and variations are ignored.'}
-          spellCheck={false}
-          aria-invalid={error?.field === 'moves'}
-        />
-        {errorFor('moves')}
+        {engineMode ? (
+          <>
+            <fieldset className="side">
+              <legend>Side to move</legend>
+              {(['white', 'black'] as const).map((c) => (
+                <label key={c}>
+                  <input
+                    type="radio"
+                    name={`${fieldId}-turn`}
+                    checked={setupTurn(input.fen) === c}
+                    onChange={() => set('fen', withTurn(input.fen, c))}
+                  />
+                  {c === 'white' ? 'White' : 'Black'}
+                </label>
+              ))}
+            </fieldset>
+
+            <fieldset className="side goal" aria-invalid={error?.field === 'goal'}>
+              <legend>Drill ends when</legend>
+              {(['checkmate', 'draw', 'win-piece'] as const).map((kind) => (
+                <label key={kind}>
+                  <input
+                    type="radio"
+                    name={`${fieldId}-goal`}
+                    checked={goal.kind === kind}
+                    onChange={() => set('goal', kind === 'win-piece' ? { kind, piece: 'q' } : { kind })}
+                  />
+                  {kind === 'checkmate' ? 'Checkmate' : kind === 'draw' ? 'Draw' : 'A piece is won'}
+                </label>
+              ))}
+              {goal.kind === 'win-piece' && (
+                <select
+                  aria-label="Piece to win"
+                  value={goal.piece}
+                  onChange={(e) => set('goal', { kind: 'win-piece', piece: e.target.value as GoalPiece })}
+                >
+                  {GOAL_PIECES.map((p) => (
+                    <option key={p} value={p}>
+                      {PIECE_NAMES[p][0].toUpperCase() + PIECE_NAMES[p].slice(1)}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </fieldset>
+            {errorFor('goal')}
+          </>
+        ) : (
+          <>
+            <label htmlFor={`${fieldId}-moves`}>Line to drill (PGN)</label>
+            <textarea
+              id={`${fieldId}-moves`}
+              className="mono"
+              rows={5}
+              value={input.moves}
+              onChange={(e) => set('moves', e.target.value)}
+              placeholder={'1. e4 c5 2. Nf3 d6 3. d4 cxd4\n\nMove text or a full PGN; comments and variations are ignored.'}
+              spellCheck={false}
+              aria-invalid={error?.field === 'moves'}
+            />
+            {errorFor('moves')}
+          </>
+        )}
 
         <fieldset className="side">
           <legend>Play as</legend>
@@ -111,7 +192,9 @@ export function DrillEditor({ drill, id, onSave, onCancel }: Props) {
 
         {result.ok && (
           <p className="moves" data-testid="editor-preview">
-            {result.drill.line.length} moves, you play {result.drill.playerColor}: {formatLine(result.drill, result.drill.line.length)}
+            {result.drill.mode === 'line'
+              ? `${result.drill.line.length} moves, you play ${result.drill.playerColor}: ${formatLine(result.drill, result.drill.line.length)}`
+              : `You play ${result.drill.playerColor} against Stockfish. Goal: ${goalLabel(result.drill.goal).toLowerCase()}.`}
           </p>
         )}
 

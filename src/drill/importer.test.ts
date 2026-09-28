@@ -12,13 +12,13 @@ describe('buildDrill', () => {
     const result = buildDrill({ ...base, moves: '1. e4 e5 2. Nf3 Nc6' }, 'x')
     expect(result).toEqual({
       ok: true,
-      drill: { id: 'x', name: 'Test', description: '', fen: DEFAULT_POSITION, playerColor: 'white', line: ['e4', 'e5', 'Nf3', 'Nc6'] },
+      drill: { id: 'x', mode: 'line', name: 'Test', description: '', fen: DEFAULT_POSITION, playerColor: 'white', line: ['e4', 'e5', 'Nf3', 'Nc6'] },
     })
   })
 
   it('accepts bare SAN without move numbers', () => {
     const result = buildDrill({ ...base, moves: 'e4 e5 Nf3' }, 'x')
-    expect(result.ok && result.drill.line).toEqual(['e4', 'e5', 'Nf3'])
+    expect(result.ok && result.drill.mode === 'line' && result.drill.line).toEqual(['e4', 'e5', 'Nf3'])
   })
 
   it('plays the line from the FEN field', () => {
@@ -44,7 +44,7 @@ describe('buildDrill', () => {
     const result = buildDrill({ ...base, fen: italianFen, moves: italianGame.line.join(' ') }, 'x')
     if (!result.ok) throw new Error(result.error)
     expect(() => validateDrill(result.drill)).not.toThrow()
-    expect(result.drill.line).toEqual(italianGame.line)
+    expect(result.drill).toMatchObject({ line: italianGame.line })
   })
 
   it.each<[string, Partial<DrillInput>, string, RegExp]>([
@@ -81,5 +81,39 @@ describe('drillToInput', () => {
   it('leaves the FEN field empty for the standard start', () => {
     const drill = { ...italianGame, fen: DEFAULT_POSITION, line: ['e4', 'e5'] }
     expect(drillToInput(drill)).toMatchObject({ fen: '', moves: '1. e4 e5' })
+  })
+})
+
+describe('buildDrill for engine drills', () => {
+  const engine: DrillInput = { ...base, mode: 'engine', goal: { kind: 'checkmate' } }
+  const kqk = '4k3/8/8/8/8/8/8/3QK3 w - - 0 1'
+
+  it('builds from a set-up position and ignores the moves field', () => {
+    const result = buildDrill({ ...engine, fen: kqk, moves: 'not moves' }, 'x')
+    expect(result).toEqual({
+      ok: true,
+      drill: { id: 'x', mode: 'engine', name: 'Test', description: '', fen: kqk, playerColor: 'white', goal: { kind: 'checkmate' } },
+    })
+  })
+
+  it('uses the standard start when no position is given', () => {
+    const result = buildDrill(engine, 'x')
+    expect(result.ok && result.drill.fen).toBe(DEFAULT_POSITION)
+  })
+
+  it('rejects positions without both kings or with the waiting side in check', () => {
+    expect(buildDrill({ ...engine, fen: '8/8/8/8/8/8/8/3QK3 w - - 0 1' }, 'x')).toMatchObject({ ok: false, field: 'fen' })
+    expect(buildDrill({ ...engine, fen: '3k4/8/8/8/8/8/8/3QK3 w - - 0 1' }, 'x')).toMatchObject({ ok: false, field: 'fen' })
+  })
+
+  it('rejects winning a piece the opponent does not have', () => {
+    const result = buildDrill({ ...engine, fen: kqk, playerColor: 'black', goal: { kind: 'win-piece', piece: 'r' } }, 'x')
+    expect(result).toMatchObject({ ok: false, field: 'goal', error: 'White has no rook to win.' })
+  })
+
+  it('round-trips through the editor', () => {
+    const result = buildDrill({ ...engine, fen: kqk, goal: { kind: 'draw' }, playerColor: 'black' }, 'x')
+    if (!result.ok) throw new Error(result.error)
+    expect(buildDrill(drillToInput(result.drill), 'x')).toEqual(result)
   })
 })
