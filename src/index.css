@@ -53,7 +53,7 @@ header p {
 
 .trainer {
   display: grid;
-  grid-template-columns: minmax(0, 560px) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 596px) minmax(0, 1fr);
   gap: 24px;
   align-items: start;
 }
@@ -64,9 +64,65 @@ header p {
   }
 }
 
+.board-area {
+  display: flex;
+  gap: 8px;
+  max-width: 596px;
+}
+
 .board {
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   max-width: 560px;
+}
+
+/* Stockfish evaluation beside the board, drawn like chess.com's. */
+.eval-bar {
+  position: relative;
+  flex: none;
+  width: 28px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: #403d39;
+}
+
+.eval-bar-white {
+  position: absolute;
+  left: 0;
+  right: 0;
+  background: #fff;
+  transition: height 0.4s ease;
+}
+
+.eval-bar-off {
+  opacity: 0.4;
+}
+
+.eval-bar-label {
+  position: absolute;
+  left: 0;
+  right: 0;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.eval-bar-label-top {
+  top: 6px;
+}
+
+.eval-bar-label-bottom {
+  bottom: 6px;
+}
+
+.eval-bar-label-white {
+  color: #403d39;
+}
+
+.eval-bar-label-black {
+  color: #fff;
 }
 
 .panel {
