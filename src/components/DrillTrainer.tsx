@@ -1,5 +1,6 @@
 import { Chess } from 'chess.js'
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { Lightbulb, RotateCcw } from 'lucide-react'
 import { Chessboard, type PieceDropHandlerArgs, type PieceHandlerArgs, type SquareHandlerArgs } from 'react-chessboard'
 import { attemptMove, expectedMove, formatLine, positionAt, sideToMove } from '../drill/engine'
 import { legalTargets } from '../drill/legalMoves'
@@ -10,6 +11,7 @@ import { getEngine } from '../engine/stockfish'
 import { formatScore } from '../engine/uci'
 import { captureRingStyle, hintStyle, lastMoveStyle, moveDotStyle, selectedStyle } from './boardStyles'
 import { EvalBar } from './EvalBar'
+import { Concept, IconButton } from './PanelParts'
 
 const OPPONENT_DELAY_MS = 400
 /** Think time for Stockfish's replies once the line is over. */
@@ -255,7 +257,7 @@ export function DrillTrainer({ drill }: { drill: LineDrill }) {
       </div>
       <aside className="panel">
         <h2>{drill.name}</h2>
-        <p className="description">{drill.description}</p>
+        <Concept text={drill.description} />
         <p className={`feedback feedback-${shownFeedback.tone}`} role="status" data-testid="feedback">
           {shownFeedback.text}
         </p>
@@ -278,13 +280,13 @@ export function DrillTrainer({ drill }: { drill: LineDrill }) {
               Play on vs Stockfish
             </button>
           ) : (
-            <button type="button" onClick={showHint} disabled={finished || !playerToMove || hint}>
-              Hint
-            </button>
+            <IconButton label="Hint" onClick={showHint} disabled={finished || !playerToMove || hint}>
+              <Lightbulb aria-hidden size={20} />
+            </IconButton>
           )}
-          <button type="button" onClick={restart}>
-            Restart
-          </button>
+          <IconButton label="Restart" onClick={restart}>
+            <RotateCcw aria-hidden size={20} />
+          </IconButton>
         </div>
       </aside>
     </section>
