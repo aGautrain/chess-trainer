@@ -1,5 +1,6 @@
 import { useId, useMemo, useState, type FormEvent } from 'react'
 import { Chessboard } from 'react-chessboard'
+import { boardTheme } from './boardTheme'
 import { DEFAULT_POSITION, validateFen } from 'chess.js'
 import { formatLine } from '../drill/engine'
 import { GOAL_PIECES, PIECE_NAMES, goalLabel } from '../drill/goals'
@@ -74,7 +75,7 @@ export function DrillEditor({ drill, id, onSave, onCancel }: Props) {
           {engineMode ? (
             <SetupBoard id={`setup-${id}`} fen={input.fen} orientation={orientation} onChange={(fen) => set('fen', fen)} />
           ) : (
-            <Chessboard options={{ id: `preview-${id}`, position: previewFen, boardOrientation: orientation, allowDragging: false }} />
+            <Chessboard options={{ ...boardTheme, id: `preview-${id}`, position: previewFen, boardOrientation: orientation, allowDragging: false }} />
           )}
         </div>
       </div>

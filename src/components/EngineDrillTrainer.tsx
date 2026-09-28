@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { Lightbulb, RotateCcw, X } from 'lucide-react'
 import confetti from 'canvas-confetti'
 import { Chessboard, type PieceDropHandlerArgs, type PieceHandlerArgs, type SquareHandlerArgs } from 'react-chessboard'
+import { boardTheme } from './boardTheme'
 import { sideToMove } from '../drill/engine'
 import { goalLabel, goalStatus } from '../drill/goals'
 import { hasTarget, storesTarget, summarize, tracksBest, type DrillProgress } from '../drill/progress'
@@ -334,6 +335,7 @@ export function EngineDrillTrainer({ drill, progress = null, onSolved, onTarget 
           <div className="board-frame">
             <Chessboard
               options={{
+                ...boardTheme,
                 id: drill.id,
                 position,
                 boardOrientation: drill.playerColor,

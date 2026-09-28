@@ -2,6 +2,7 @@ import { Chess } from 'chess.js'
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { Lightbulb, RotateCcw } from 'lucide-react'
 import { Chessboard, type PieceDropHandlerArgs, type PieceHandlerArgs, type SquareHandlerArgs } from 'react-chessboard'
+import { boardTheme } from './boardTheme'
 import { attemptMove, expectedMove, sideToMove } from '../drill/engine'
 import { legalTargets } from '../drill/legalMoves'
 import type { LineDrill } from '../drill/types'
@@ -277,6 +278,7 @@ export function DrillTrainer({ drill }: { drill: LineDrill }) {
         <div className="board">
           <Chessboard
             options={{
+              ...boardTheme,
               id: drill.id,
               position,
               boardOrientation: drill.playerColor,
