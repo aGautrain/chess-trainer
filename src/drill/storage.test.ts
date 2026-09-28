@@ -53,6 +53,22 @@ describe('custom drill storage', () => {
     expect(loadCustomDrills(memoryStore(JSON.stringify([engine, badGoal])))).toEqual([engine])
   })
 
+  it('loads engine drills saved before randomizing existed as not randomized, and keeps the choice once set', () => {
+    const engine = {
+      id: 'custom-engine',
+      mode: 'engine',
+      name: 'KQ vs K',
+      description: '',
+      fen: '4k3/8/8/8/8/8/8/3QK3 w - - 0 1',
+      playerColor: 'white',
+      goal: { kind: 'checkmate' },
+    }
+    const randomized = { ...engine, id: 'custom-random', randomize: true }
+    const junk = { ...engine, id: 'custom-junk', randomize: 'yes' }
+    const loaded = loadCustomDrills(memoryStore(JSON.stringify([engine, randomized, junk])))
+    expect(loaded.map((d) => d.mode === 'engine' && d.randomize === true)).toEqual([false, true, false])
+  })
+
   it('reports a failed save', () => {
     const store = { getItem: () => null, setItem: () => { throw new Error('QuotaExceededError') } }
     expect(saveCustomDrills([italianGame], store)).toBe(false)

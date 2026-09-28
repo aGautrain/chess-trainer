@@ -27,6 +27,8 @@ export interface LineDrill extends DrillBase {
 export interface EngineDrill extends DrillBase {
   mode: 'engine'
   goal: EngineGoal
+  /** Shuffle the pieces to new squares of about the same evaluation each time the drill starts. */
+  randomize?: boolean
 }
 
 export type Drill = LineDrill | EngineDrill

@@ -17,6 +17,8 @@ export interface DrillInput {
   mode?: DrillMode
   /** When an engine drill is won; ignored for line drills. */
   goal?: EngineGoal
+  /** Engine drills only: start from a shuffled position of about the same evaluation. */
+  randomize?: boolean
 }
 
 export type DrillField = 'name' | 'fen' | 'moves' | 'goal'
@@ -82,14 +84,25 @@ function buildEngineDrill(input: DrillInput, id: string): BuildResult {
 
   return {
     ok: true,
-    drill: { id, mode: 'engine', name, description: input.description.trim(), fen: new Chess(fen).fen(), playerColor, goal },
+    drill: {
+      id,
+      mode: 'engine',
+      name,
+      description: input.description.trim(),
+      fen: new Chess(fen).fen(),
+      playerColor,
+      goal,
+      ...(input.randomize ? { randomize: true } : {}),
+    },
   }
 }
 
 /** Editor values for an existing drill, so it can be edited and saved again. */
 export function drillToInput(drill: Drill): DrillInput {
   const common = { name: drill.name, description: drill.description, playerColor: drill.playerColor }
-  if (drill.mode === 'engine') return { ...common, mode: 'engine', fen: drill.fen, moves: '', goal: drill.goal }
+  if (drill.mode === 'engine') {
+    return { ...common, mode: 'engine', fen: drill.fen, moves: '', goal: drill.goal, randomize: drill.randomize === true }
+  }
   return {
     ...common,
     mode: 'line',
