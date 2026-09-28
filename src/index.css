@@ -1,0 +1,154 @@
+:root {
+  --text: #2c2a33;
+  --muted: #6b6375;
+  --bg: #f7f6f2;
+  --panel: #fff;
+  --border: #e2e0e6;
+  --good: #1f7a3a;
+  --bad: #b3261e;
+  --accent: #3b5bdb;
+
+  font: 16px/1.5 system-ui, 'Segoe UI', Roboto, sans-serif;
+  color: var(--text);
+  background: var(--bg);
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --text: #ecebf0;
+    --muted: #a19bab;
+    --bg: #17161b;
+    --panel: #212026;
+    --border: #36343d;
+    --good: #5cc27a;
+    --bad: #f07167;
+    --accent: #8ea2ff;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+}
+
+main {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 24px 16px;
+}
+
+h1 {
+  margin: 0 0 4px;
+}
+
+header p {
+  margin: 0 0 24px;
+  color: var(--muted);
+}
+
+.trainer {
+  display: grid;
+  grid-template-columns: minmax(0, 560px) minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+
+@media (max-width: 800px) {
+  .trainer {
+    grid-template-columns: 1fr;
+  }
+}
+
+.board {
+  width: 100%;
+  max-width: 560px;
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.panel h2 {
+  margin: 0 0 8px;
+  font-size: 1.2rem;
+}
+
+.description {
+  margin: 0 0 16px;
+  color: var(--muted);
+}
+
+.feedback {
+  margin: 0 0 16px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  font-weight: 600;
+}
+
+.feedback-good {
+  color: var(--good);
+  border-color: var(--good);
+}
+
+.feedback-bad {
+  color: var(--bad);
+  border-color: var(--bad);
+}
+
+.feedback-done {
+  color: #fff;
+  background: var(--good);
+  border-color: var(--good);
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 16px;
+  margin: 0 0 16px;
+}
+
+.stats dt {
+  color: var(--muted);
+}
+
+.stats dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.moves {
+  min-height: 3em;
+  margin: 0 0 16px;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 0.9rem;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+}
+
+button {
+  font: inherit;
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 1px solid var(--accent);
+  background: transparent;
+  color: var(--accent);
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
