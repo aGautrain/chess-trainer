@@ -669,9 +669,20 @@ button.star:hover {
   box-shadow: 0 12px 32px rgb(0 0 0 / 0.3);
 }
 
+.result {
+  text-align: center;
+}
+
 .result h2 {
   margin: 0 0 4px;
-  font-size: 1.6rem;
+  font-size: 2.4rem;
+  line-height: 1.1;
+}
+
+.result .stats {
+  grid-template-columns: auto auto;
+  justify-content: center;
+  text-align: left;
 }
 
 .result-won h2 {
