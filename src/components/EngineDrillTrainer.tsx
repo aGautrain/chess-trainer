@@ -9,9 +9,6 @@ import type { EngineDrill } from '../drill/types'
 import { playUci } from '../engine/moves'
 import { getEngine } from '../engine/stockfish'
 import type { EngineIdentity } from '../engine/uci'
-import { formatDue } from '../review/format'
-import { gradeFromRun } from '../review/scheduler'
-import { useNow, useReviews } from '../review/useReviews'
 import { captureRingStyle, hintStyle, lastMoveStyle, moveDotStyle, selectedStyle } from './boardStyles'
 import { EvalBar } from './EvalBar'
 
@@ -53,10 +50,6 @@ export function EngineDrillTrainer({ drill }: { drill: EngineDrill }) {
   const [lastDepth, setLastDepth] = useState<number | null>(null)
   /** Bumped on restart so late engine answers from the previous run are dropped. */
   const run = useRef(0)
-  /** The run whose result was last written to the review schedule. */
-  const recordedRun = useRef(-1)
-  const reviews = useReviews()
-  const now = useNow()
 
   const shuffling = startFen === null
   const game = useMemo(() => {
@@ -126,13 +119,6 @@ export function EngineDrillTrainer({ drill }: { drill: EngineDrill }) {
     }
   }, [shuffling, over, playerTurn, engineError, fen])
 
-  // Once the drill ends, schedule its next review: a missed goal counts as a failed run.
-  useEffect(() => {
-    if (!over || recordedRun.current === run.current) return
-    recordedRun.current = run.current
-    reviews.record(drill.id, gradeFromRun({ mistakes: status.state === 'lost' ? 1 : 0, hintsUsed }))
-  }, [over, status.state, reviews, drill.id, hintsUsed])
-
   function tryMove(from: string, to: string): boolean {
     // Promotions always make a queen.
     const played = playUci(fen, `${from}${to}q`) ?? playUci(fen, `${from}${to}`)
@@ -197,9 +183,7 @@ export function EngineDrillTrainer({ drill }: { drill: EngineDrill }) {
   if (shuffling) {
     feedback = { tone: 'info', text: 'Shuffling the pieces…' }
   } else if (status.state !== 'playing') {
-    const card = reviews.get(drill.id)
-    const next = card ? ` Next review ${formatDue(card.due, now)}.` : ''
-    feedback = { tone: status.state === 'won' ? 'done' : 'bad', text: status.reason + next }
+    feedback = { tone: status.state === 'won' ? 'done' : 'bad', text: status.reason }
   } else if (engineError) {
     feedback = { tone: 'bad', text: 'Stockfish could not load, so this drill cannot be played.' }
   } else if (playerTurn) {
