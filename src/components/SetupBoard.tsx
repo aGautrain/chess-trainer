@@ -1,5 +1,6 @@
 import { DEFAULT_POSITION } from 'chess.js'
 import { Chessboard, ChessboardProvider, SparePiece, type PieceDropHandlerArgs, type SquareHandlerArgs } from 'react-chessboard'
+import { boardTheme } from './boardTheme'
 import { EMPTY_BOARD, editSetup, fromPlacement, setupPlacement, setupTurn } from '../drill/setup'
 
 const PIECE_TYPES = ['K', 'Q', 'R', 'B', 'N', 'P']
@@ -47,6 +48,7 @@ export function SetupBoard({ id, fen, orientation, onChange }: Props) {
     <div className="setup-board" data-testid="setup-board">
       <ChessboardProvider
         options={{
+          ...boardTheme,
           id,
           position: setupPlacement(fen),
           boardOrientation: orientation,
