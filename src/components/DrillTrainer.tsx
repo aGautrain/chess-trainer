@@ -12,6 +12,7 @@ import { formatScore } from '../engine/uci'
 import { captureRingStyle, hintStyle, lastMoveStyle, moveDotStyle, selectedStyle } from './boardStyles'
 import { EvalBar } from './EvalBar'
 import { Concept, IconButton } from './PanelParts'
+import { useBoardPosition } from './useBoardPosition'
 
 const OPPONENT_DELAY_MS = 400
 /** Think time for Stockfish's replies once the line is over. */
@@ -55,6 +56,7 @@ export function DrillTrainer({ drill }: { drill: LineDrill }) {
     return g
   }, [drill, ply, sparring])
   const fen = game.fen()
+  const { position, onDropOffBoard } = useBoardPosition(fen)
   const expected = useMemo(() => expectedMove(drill, ply), [drill, ply])
   const lastMove = useMemo(() => {
     if (sparring?.length) return game.history({ verbose: true }).at(-1) ?? null
@@ -164,7 +166,11 @@ export function DrillTrainer({ drill }: { drill: LineDrill }) {
     // Dropping a piece back where it was keeps it selected, so the move can be finished by clicking.
     if (targetSquare === sourceSquare) return false
     setSelected(null)
-    if (!playerToMove || !targetSquare) return false
+    if (!targetSquare) {
+      onDropOffBoard()
+      return false
+    }
+    if (!playerToMove) return false
     return tryMove(sourceSquare, targetSquare)
   }
 
@@ -242,7 +248,7 @@ export function DrillTrainer({ drill }: { drill: LineDrill }) {
           <Chessboard
             options={{
               id: drill.id,
-              position: fen,
+              position,
               boardOrientation: drill.playerColor,
               onPieceDrag,
               onPieceDrop,
