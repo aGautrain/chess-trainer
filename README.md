@@ -32,8 +32,28 @@ Drills live in `src/drill/drills.ts`:
 
 - `line` is in SAN and alternates sides, starting with the side to move in `fen`.
 - If the side to move is not `playerColor`, the first move is played automatically.
-- A legal move that is off the line is rejected with feedback and counted as a mistake; the piece snaps back so you can try again. **Hint** highlights the piece to move.
+- A legal move that is off the line is judged by Stockfish (see below). The piece snaps back either way so you can play the line move. **Hint** highlights the piece to move.
 - The checking logic is in `src/drill/engine.ts`, independent of the UI, and a unit test verifies every drill's line is legal.
+
+## Engine checks
+
+[Stockfish 19](https://github.com/nmrugg/stockfish.js) (the 1.8 MB single-threaded lite WASM build, GPLv3) runs in a Web Worker, vendored in `public/engine/`.
+
+- An off-line move is compared with the engine's best move at depth 12, using Lichess' win-chance thresholds: *best* or *good* moves are accepted as sound (not a mistake, but the drill still asks for the line move); *inaccuracies*, *mistakes* and *blunders* count as mistakes, with the engine's preferred move shown.
+- When the line is finished, **Play on vs Stockfish** continues the game from the final position with the engine playing the other side, and each of your moves is judged.
+- If the engine fails to load, off-line moves fall back to counting as mistakes.
+
+Code: `src/engine/stockfish.ts` (UCI over the worker), `src/engine/judge.ts` (classification).
+
+## Spaced review
+
+Finishing a drill schedules its next review with a small SM-2 scheduler (`src/review/scheduler.ts`), stored in `localStorage` under `chess-trainer:reviews:v1`.
+
+- Any mistake: *again*, due in 10 minutes and the interval resets.
+- No mistakes but a hint or a sound off-line move: *hard*, the interval grows slowly.
+- Clean run: *good*, intervals go 1, 6, then about 2.5× each time.
+
+The **Reviews** list under the board shows each drill with when it is next due.
 
 ## Deploying to GitHub Pages
 
