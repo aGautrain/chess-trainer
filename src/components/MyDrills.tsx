@@ -1,5 +1,7 @@
+import type { DrillProgress } from '../drill/progress'
 import type { Drill } from '../drill/types'
 import { drillMeta } from './drillMeta'
+import { ProgressTag } from './ProgressTag'
 import { StarButton } from './StarButton'
 
 interface Props {
@@ -7,6 +9,7 @@ interface Props {
   drills: Drill[]
   selectedId: string | null
   isCustom: (drill: Drill) => boolean
+  progressOf: (drill: Drill) => DrillProgress | null
   onSelect: (drill: Drill) => void
   onUnstar: (drill: Drill) => void
   onNew: () => void
@@ -15,7 +18,7 @@ interface Props {
   onBrowse: () => void
 }
 
-export function MyDrills({ drills, selectedId, isCustom, onSelect, onUnstar, onNew, onEdit, onDelete, onBrowse }: Props) {
+export function MyDrills({ drills, selectedId, isCustom, progressOf, onSelect, onUnstar, onNew, onEdit, onDelete, onBrowse }: Props) {
   return (
     <nav className="library" aria-label="My drills">
       {drills.length === 0 ? (
@@ -27,7 +30,10 @@ export function MyDrills({ drills, selectedId, isCustom, onSelect, onUnstar, onN
               <div className="drill-row">
                 <button type="button" className="drill-name" onClick={() => onSelect(drill)} aria-current={drill.id === selectedId}>
                   {drill.name}
-                  <span className="drill-meta">{drillMeta(drill)}</span>
+                  <span className="drill-meta">
+                    {drillMeta(drill)}
+                    <ProgressTag progress={progressOf(drill)} />
+                  </span>
                 </button>
                 <StarButton name={drill.name} starred onToggle={() => onUnstar(drill)} />
               </div>

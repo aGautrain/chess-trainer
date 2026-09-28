@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { Chessboard, type PieceDropHandlerArgs, type PieceHandlerArgs, type SquareHandlerArgs } from 'react-chessboard'
 import { formatMoves, sideToMove } from '../drill/engine'
 import { goalLabel, goalStatus } from '../drill/goals'
+import { hasTarget, tracksBest, type DrillProgress } from '../drill/progress'
 import { randomizePosition } from '../drill/randomize'
 import { legalTargets } from '../drill/legalMoves'
 import type { EngineDrill } from '../drill/types'
@@ -32,8 +33,18 @@ function engineParams(identity: EngineIdentity | null, depth: number | null): st
 
 type Feedback = { tone: 'info' | 'good' | 'bad' | 'done'; text: string }
 
+interface Props {
+  drill: EngineDrill
+  /** Best result and move target, for drills that keep them. */
+  progress?: DrillProgress | null
+  /** Called once per successful run with the number of moves the player made. */
+  onSolved?: (moves: number) => void
+}
+
+const plural = (n: number) => `${n} move${n === 1 ? '' : 's'}`
+
 /** Plays a position out against Stockfish's best moves until the drill's goal is met or can no longer be. */
-export function EngineDrillTrainer({ drill }: { drill: EngineDrill }) {
+export function EngineDrillTrainer({ drill, progress = null, onSolved }: Props) {
   /** The position this run starts from: the drill's own, or a shuffle of it. Null while shuffling. */
   const [startFen, setStartFen] = useState<string | null>(drill.randomize ? null : drill.fen)
   /** Bumped to ask for a new shuffle. */
@@ -63,6 +74,8 @@ export function EngineDrillTrainer({ drill }: { drill: EngineDrill }) {
   const lastMove = moves.length ? (game.history({ verbose: true }).at(-1) ?? null) : null
   const playerTurn = sideToMove(fen) === drill.playerColor
   const playerToMove = !shuffling && !over && playerTurn
+  const playerMoves = game.history({ verbose: true }).filter((m) => m.color === drill.playerColor[0]).length
+  const solved = !shuffling && status.state === 'won'
   const hintSquare = hint?.fen === fen ? hint.square : null
   const targets = useMemo(() => (selected && playerToMove ? legalTargets(fen, selected) : []), [fen, selected, playerToMove])
 
@@ -99,6 +112,14 @@ export function EngineDrillTrainer({ drill }: { drill: EngineDrill }) {
       cancelled = true
     }
   }, [drill.randomize, drill.fen, drill.playerColor, shuffle])
+
+  // Keep the result of a successful run, once, while it is the current run.
+  const reported = useRef(-1)
+  useEffect(() => {
+    if (!solved || reported.current === run.current) return
+    reported.current = run.current
+    onSolved?.(playerMoves)
+  }, [solved, playerMoves, onSolved])
 
   // Stockfish answers with its best move.
   useEffect(() => {
@@ -240,6 +261,31 @@ export function EngineDrillTrainer({ drill }: { drill: EngineDrill }) {
             <>
               <dt>Position</dt>
               <dd>Randomized</dd>
+            </>
+          )}
+          {tracksBest(drill) && (
+            <>
+              <dt>Your moves</dt>
+              <dd data-testid="player-moves">{playerMoves}</dd>
+              {hasTarget(drill) && (
+                <>
+                  <dt>Target</dt>
+                  <dd data-testid="target">
+                    {progress?.target === undefined
+                      ? 'Stockfish is looking for the shortest mate…'
+                      : progress.target === null
+                        ? 'Stockfish found no forced mate to count'
+                        : `Mate in ${plural(progress.target)}`}
+                  </dd>
+                </>
+              )}
+              <dt>Best</dt>
+              <dd data-testid="best">
+                {progress?.best === undefined ? 'Not solved yet' : plural(progress.best)}
+                {progress?.best !== undefined && typeof progress.target === 'number' && progress.best <= progress.target && (
+                  <span className="progress-tag completed">Completed</span>
+                )}
+              </dd>
             </>
           )}
           <dt>Opponent</dt>

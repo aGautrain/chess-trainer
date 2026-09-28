@@ -8,6 +8,8 @@ import { drills as builtInDrills } from './drill/drills'
 import { loadFavorites, saveFavorites, toggleFavorite } from './drill/favorites'
 import { loadCustomDrills, newDrillId, saveCustomDrills } from './drill/storage'
 import type { Drill } from './drill/types'
+import { progressFor } from './drill/progress'
+import { useDrillProgress } from './useDrillProgress'
 import { useHashPage } from './useHashPage'
 
 type View = { kind: 'play' } | { kind: 'edit'; drill?: Drill; id: string }
@@ -29,6 +31,8 @@ export default function App() {
   const myDrills = favorites.flatMap((id) => byId.get(id) ?? [])
   const isCustom = (drill: Drill) => customDrills.some((d) => d.id === drill.id)
   const isStarred = (drill: Drill) => favorites.includes(drill.id)
+  const { progress, recordResult, forget } = useDrillProgress(allDrills)
+  const progressOf = (drill: Drill) => progressFor(progress, drill)
 
   function updateCustom(next: Drill[]) {
     setCustomDrills(next)
@@ -63,6 +67,7 @@ export default function App() {
   function remove(drill: Drill) {
     updateCustom(customDrills.filter((d) => d.id !== drill.id))
     if (favorites.includes(drill.id)) updateFavorites(favorites.filter((id) => id !== drill.id))
+    forget(drill.id)
     if (selectedId === drill.id) setSelectedId(builtInDrills[0].id)
     if (view.kind === 'edit' && view.id === drill.id) setView({ kind: 'play' })
   }
@@ -97,6 +102,7 @@ export default function App() {
             drills={allDrills}
             isStarred={isStarred}
             isCustom={isCustom}
+            progressOf={progressOf}
             onPlay={play}
             onToggleStar={toggleStar}
             onNew={() => edit()}
@@ -111,6 +117,7 @@ export default function App() {
                 drills={myDrills}
                 selectedId={view.kind === 'play' ? selected.id : null}
                 isCustom={isCustom}
+                progressOf={progressOf}
                 onSelect={play}
                 onUnstar={toggleStar}
                 onNew={() => edit()}
@@ -123,7 +130,11 @@ export default function App() {
               ) : (
                 // Keyed by content so switching or editing a drill starts it fresh.
                 selected.mode === 'engine' ? (
-                  <EngineDrillTrainer key={`${selected.id}:${selected.fen}:${selected.playerColor}:${JSON.stringify(selected.goal)}:${selected.randomize === true}`} drill={selected} />
+                  <EngineDrillTrainer key={`${selected.id}:${selected.fen}:${selected.playerColor}:${JSON.stringify(selected.goal)}:${selected.randomize === true}`} 
+                    drill={selected}
+                    progress={progressOf(selected)}
+                    onSolved={(moves) => recordResult(selected, moves)}
+                  />
                 ) : (
                   <DrillTrainer key={`${selected.id}:${selected.fen}:${selected.line.join(' ')}`} drill={selected} />
                 )
