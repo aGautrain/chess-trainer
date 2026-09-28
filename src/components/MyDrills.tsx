@@ -18,20 +18,8 @@ interface Props {
 export function MyDrills({ drills, selectedId, isCustom, onSelect, onUnstar, onNew, onEdit, onDelete, onBrowse }: Props) {
   return (
     <nav className="library" aria-label="My drills">
-      <div className="library-head">
-        <h2>My drills</h2>
-        <button type="button" className="primary" onClick={onNew}>
-          New drill
-        </button>
-      </div>
       {drills.length === 0 ? (
-        <p className="empty">
-          No drills starred yet.{' '}
-          <button type="button" className="link" onClick={onBrowse}>
-            Browse the Library
-          </button>{' '}
-          and star the ones you want to train.
-        </p>
+        <p className="empty">No drills starred yet. Star drills in the Library to train them here.</p>
       ) : (
         <ul data-testid="my-drills">
           {drills.map((drill) => (
@@ -48,6 +36,14 @@ export function MyDrills({ drills, selectedId, isCustom, onSelect, onUnstar, onN
           ))}
         </ul>
       )}
+      <div className="library-foot">
+        <button type="button" className="primary" onClick={onNew}>
+          New drill
+        </button>
+        <button type="button" onClick={onBrowse}>
+          Library
+        </button>
+      </div>
     </nav>
   )
 }
