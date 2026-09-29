@@ -10,7 +10,7 @@ import { judgeMove, type MoveJudgement } from '../engine/judge'
 import { playUci, uciToSan } from '../engine/moves'
 import { getEngine } from '../engine/stockfish'
 import { formatScore } from '../engine/uci'
-import { captureRingStyle, hintStyle, lastMoveStyle, moveDotStyle, selectedStyle } from './boardStyles'
+import { captureRingStyle, hintArrowColor, hintStyle, lastMoveStyle, moveDotStyle, selectedStyle } from './boardStyles'
 import { EvalBar } from './EvalBar'
 import { MoveHistory } from './MoveHistory'
 import { Concept, IconButton } from './PanelParts'
@@ -40,7 +40,8 @@ function describe(san: string, judgement: MoveJudgement, fenBefore: string): str
 export function DrillTrainer({ drill }: { drill: LineDrill }) {
   const [ply, setPly] = useState(0)
   const [mistakes, setMistakes] = useState(0)
-  const [hint, setHint] = useState(false)
+  /** 0 without a hint, 1 marks the piece to move, 2 also draws the move as an arrow. */
+  const [hint, setHint] = useState(0)
   const [feedback, setFeedback] = useState<Feedback>({ tone: 'info', text: 'Your move.' })
   /** True while Stockfish judges an off-line move; the board is locked meanwhile. */
   const [checking, setChecking] = useState(false)
@@ -163,7 +164,7 @@ export function DrillTrainer({ drill }: { drill: LineDrill }) {
         return false
       }
       case 'correct':
-        setHint(false)
+        setHint(0)
         setFeedback({ tone: 'good', text: `${result.san} is correct.` })
         setPly(shown + 1)
         setSparring(null)
@@ -225,7 +226,7 @@ export function DrillTrainer({ drill }: { drill: LineDrill }) {
     run.current++
     setPly(0)
     setMistakes(0)
-    setHint(false)
+    setHint(0)
     setChecking(false)
     setSparring(null)
     setView(null)
@@ -234,7 +235,7 @@ export function DrillTrainer({ drill }: { drill: LineDrill }) {
   }
 
   function showHint() {
-    setHint(true)
+    setHint((h) => Math.min(h + 1, 2))
   }
 
   /** Shows the position after the first `n` moves; the latest one returns to the game. */
@@ -242,7 +243,7 @@ export function DrillTrainer({ drill }: { drill: LineDrill }) {
     const clamped = Math.max(0, Math.min(history.length, n))
     setView(clamped === history.length ? null : clamped)
     setSelected(null)
-    setHint(false)
+    setHint(0)
   }
 
   let shownFeedback: Feedback = feedback
@@ -266,6 +267,8 @@ export function DrillTrainer({ drill }: { drill: LineDrill }) {
     squareStyles[lastMove.to] = lastMoveStyle
   }
   if (hint && expected && playerToMove) squareStyles[expected.from] = { ...squareStyles[expected.from], ...hintStyle }
+  const arrows =
+    hint === 2 && expected && playerToMove ? [{ startSquare: expected.from, endSquare: expected.to, color: hintArrowColor }] : []
   if (selected && playerToMove) {
     squareStyles[selected] = { ...squareStyles[selected], ...selectedStyle }
     for (const { to, capture } of targets) squareStyles[to] = { ...squareStyles[to], ...(capture ? captureRingStyle : moveDotStyle) }
@@ -289,6 +292,7 @@ export function DrillTrainer({ drill }: { drill: LineDrill }) {
               canDragPiece: ({ square }) => square !== null && selectable(square),
               allowDragging: playerToMove,
               squareStyles,
+              arrows,
             }}
           />
         </div>
@@ -315,7 +319,7 @@ export function DrillTrainer({ drill }: { drill: LineDrill }) {
               Play on vs Stockfish
             </button>
           ) : (
-            <IconButton label="Hint" onClick={showHint} disabled={expected === null || !playerToMove || hint}>
+            <IconButton label={hint ? 'Show best move' : 'Hint'} onClick={showHint} disabled={expected === null || !playerToMove || hint === 2}>
               <Lightbulb aria-hidden size={20} />
             </IconButton>
           )}
