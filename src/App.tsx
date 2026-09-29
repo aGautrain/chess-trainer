@@ -11,6 +11,8 @@ import type { Drill } from './drill/types'
 import { progressFor } from './drill/progress'
 import { useDrillProgress } from './useDrillProgress'
 import { useHashPage } from './useHashPage'
+import { usePhoneLayout } from './usePhoneLayout'
+import { ArrowLeft } from 'lucide-react'
 
 type View = { kind: 'play' } | { kind: 'edit'; drill?: Drill; id: string }
 
@@ -29,6 +31,7 @@ export default function App() {
   const [view, setView] = useState<View>({ kind: 'play' })
   const [saveFailed, setSaveFailed] = useState(false)
   const [page, goTo] = useHashPage()
+  const phone = usePhoneLayout()
 
   const allDrills = [...builtInDrills, ...customDrills]
   const selected = allDrills.find((d) => d.id === selectedId) ?? builtInDrills[0]
@@ -53,11 +56,14 @@ export default function App() {
     setSelectedId(drill.id)
     setView({ kind: 'play' })
     goTo('train')
+    // On phones My drills is under the board: go back up to it.
+    if (phone) window.scrollTo(0, 0)
   }
 
   function edit(drill?: Drill) {
     setView({ kind: 'edit', drill, id: drill?.id ?? newDrillId() })
     goTo('train')
+    if (phone) window.scrollTo(0, 0)
   }
 
   function save(drill: Drill) {
@@ -103,17 +109,25 @@ export default function App() {
           </p>
         )}
         {page === 'library' ? (
-          <LibraryPage
-            drills={allDrills}
-            isStarred={isStarred}
-            isCustom={isCustom}
-            progressOf={progressOf}
-            onPlay={play}
-            onToggleStar={toggleStar}
-            onNew={() => edit()}
-            onEdit={edit}
-            onDelete={remove}
-          />
+          <>
+            {phone && (
+              <a className="back-link" href="#/">
+                <ArrowLeft aria-hidden size={18} />
+                Back to training
+              </a>
+            )}
+            <LibraryPage
+              drills={allDrills}
+              isStarred={isStarred}
+              isCustom={isCustom}
+              progressOf={progressOf}
+              onPlay={play}
+              onToggleStar={toggleStar}
+              onNew={() => edit()}
+              onEdit={edit}
+              onDelete={remove}
+            />
+          </>
         ) : (
           <>
             <p className="intro">Play the expected line from a setup, or play a position out against Stockfish. Everything runs in your browser.</p>

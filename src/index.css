@@ -868,3 +868,172 @@ button.star:hover {
     min-height: 36px;
   }
 }
+
+/* The panel's title row; on phones it also holds the way to the Library. */
+.panel-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.icon-link {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  margin: -8px -8px 0 0;
+  border-radius: 8px;
+  color: var(--accent);
+}
+
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  margin-bottom: 8px;
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+/*
+ * Phones (keep in step with PHONE_QUERY in usePhoneLayout.ts): no top bar, the board first with
+ * its controls right under it, then the drill card, then My drills, all of the first three on one screen.
+ */
+@media (max-width: 640px), (max-height: 500px) {
+  .topbar,
+  .intro {
+    display: none;
+  }
+
+  main {
+    padding: 8px 8px 24px;
+  }
+
+  .layout {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .stage {
+    order: -1;
+  }
+
+  /* My drills is below everything now, so back to a plain list. */
+  .library ul {
+    display: block;
+    overflow: visible;
+    margin: 0;
+    padding: 0;
+  }
+
+  .library li {
+    width: auto;
+    border: none;
+  }
+
+  .trainer {
+    gap: 12px;
+  }
+
+  .board-area {
+    gap: 6px;
+  }
+
+  .eval-bar {
+    width: 24px;
+  }
+
+  .eval-bar-label {
+    font-size: 9px;
+    letter-spacing: -0.02em;
+  }
+
+  .engine-params {
+    display: none;
+  }
+
+  .board-controls {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+  }
+
+  .board-controls button {
+    height: 48px;
+  }
+
+  .board-controls .icon-button {
+    width: 48px;
+  }
+
+  .board-controls .icon-button.labelled,
+  .board-controls button:not(.icon-button) {
+    flex: 1;
+    width: auto;
+    gap: 8px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .panel {
+    padding: 12px 14px;
+  }
+
+  .panel h2 {
+    margin-bottom: 4px;
+    font-size: 1.05rem;
+  }
+
+  .concept {
+    margin-bottom: 6px;
+  }
+
+  .feedback {
+    margin-bottom: 8px;
+    padding: 6px 10px;
+  }
+
+  /* Two facts per row. */
+  .stats {
+    grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 1fr);
+    gap: 0 8px;
+    margin-bottom: 6px;
+    font-size: 0.85rem;
+  }
+
+  .moves-empty {
+    display: none;
+  }
+
+  /* One line of moves that scrolls sideways. */
+  .moves {
+    min-height: 0;
+    margin: 0;
+    white-space: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+}
+
+/* Upright phones: the board leaves room under it for its controls and the drill card. */
+@media (max-width: 640px) {
+  .board-column {
+    width: 100%;
+    max-width: calc(100svh - 260px);
+    margin-inline: auto;
+  }
+}
+
+/* Phones on their side: board and card side by side, the board as tall as the screen allows under its controls. */
+@media (max-height: 500px) {
+  .trainer {
+    --board-area: calc(100svh - 46px);
+  }
+}
