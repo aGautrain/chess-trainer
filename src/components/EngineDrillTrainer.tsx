@@ -4,6 +4,7 @@ import { Lightbulb, RotateCcw, X } from 'lucide-react'
 import confetti from 'canvas-confetti'
 import { Chessboard, type PieceDropHandlerArgs, type PieceHandlerArgs, type SquareHandlerArgs } from 'react-chessboard'
 import { boardTheme } from './boardTheme'
+import { DrillTimer } from './DrillTimer'
 import { sideToMove } from '../drill/engine'
 import { goalLabel, goalStatus } from '../drill/goals'
 import { hasTarget, storesTarget, summarize, tracksBest, type DrillProgress } from '../drill/progress'
@@ -18,6 +19,8 @@ import { captureRingStyle, hintArrowColor, hintStyle, lastMoveStyle, moveDotStyl
 import { EvalBar } from './EvalBar'
 import { HistoryButtons, MoveHistory } from './MoveHistory'
 import { Concept, IconButton, PanelTitle } from './PanelParts'
+import { formatTime } from '../timer/stopwatch'
+import { useDrillTimer } from '../timer/useDrillTimer'
 import { usePhoneLayout } from '../usePhoneLayout'
 import { useBoardPosition } from './useBoardPosition'
 
@@ -121,6 +124,8 @@ export function EngineDrillTrainer({ drill, progress = null, onSolved, onTarget 
   const best = summarize(progress)
   const shownHint = hint?.fen === fen ? hint : null
   const targets = useMemo(() => (selected && playerToMove ? legalTargets(fen, selected) : []), [fen, selected, playerToMove])
+  // Thinking time: only while the player can move, and not once the game is decided.
+  const timer = useDrillTimer(playerToMove && !over && !engineError, fen)
 
   useEffect(() => {
     let cancelled = false
@@ -301,6 +306,7 @@ export function EngineDrillTrainer({ drill, progress = null, onSolved, onTarget 
     setSelected(null)
     setEngineError(false)
     setLastDepth(null)
+    timer.reset()
     if (drill.randomize) {
       setStartFen(null)
       setShuffle((n) => n + 1)
@@ -405,6 +411,8 @@ export function EngineDrillTrainer({ drill, progress = null, onSolved, onTarget 
                       )}
                       <dt>Your moves</dt>
                       <dd>{playerMoves}</dd>
+                      <dt>Time</dt>
+                      <dd data-testid="result-time">{formatTime(timer.elapsed)}</dd>
                     </dl>
                     <button type="button" className="primary retry" onClick={restart}>
                       <RotateCcw aria-hidden size={18} />
@@ -469,6 +477,7 @@ export function EngineDrillTrainer({ drill, progress = null, onSolved, onTarget 
         <MoveHistory fen={startFen ?? drill.fen} moves={moves} shown={shown} onShow={showMove} nav={!phone} />
         {!phone && <div className="actions">{actions}</div>}
       </aside>
+      <DrillTimer elapsed={timer.elapsed} running={timer.running} done={over} />
     </section>
   )
 }

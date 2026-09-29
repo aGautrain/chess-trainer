@@ -13,12 +13,16 @@ for (const color of ['w', 'b']) {
   }
 }
 
+/** How long a move slides across the board. */
+export const BOARD_ANIMATION_MS = 300
+
 const light = '#edd6b0'
 const dark = '#b88762'
 
 /** Piece set and square colours shared by every board in the app. */
 export const boardTheme = {
   pieces,
+  animationDurationInMs: BOARD_ANIMATION_MS,
   lightSquareStyle: { backgroundColor: light },
   darkSquareStyle: { backgroundColor: dark },
   lightSquareNotationStyle: { color: dark },

@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { Lightbulb, RotateCcw } from 'lucide-react'
 import { Chessboard, type PieceDropHandlerArgs, type PieceHandlerArgs, type SquareHandlerArgs } from 'react-chessboard'
 import { boardTheme } from './boardTheme'
+import { DrillTimer } from './DrillTimer'
 import { attemptMove, expectedMove, sideToMove } from '../drill/engine'
 import { legalTargets } from '../drill/legalMoves'
 import type { LineDrill } from '../drill/types'
@@ -14,6 +15,7 @@ import { captureRingStyle, hintArrowColor, hintStyle, lastMoveStyle, moveDotStyl
 import { EvalBar } from './EvalBar'
 import { HistoryButtons, MoveHistory } from './MoveHistory'
 import { Concept, IconButton, PanelTitle } from './PanelParts'
+import { useDrillTimer } from '../timer/useDrillTimer'
 import { usePhoneLayout } from '../usePhoneLayout'
 import { useBoardPosition } from './useBoardPosition'
 
@@ -80,6 +82,8 @@ export function DrillTrainer({ drill }: { drill: LineDrill }) {
   const playerTurn = sideToMove(fen) === drill.playerColor
   const playerToMove = !checking && !gameOver && playerTurn && (expected !== null || sparring !== null)
   const targets = useMemo(() => (selected && playerToMove ? legalTargets(fen, selected) : []), [fen, selected, playerToMove])
+  // Thinking time for the line; moves played on against Stockfish after it are not timed.
+  const timer = useDrillTimer(playerToMove && !finished, fen)
 
   // Play the opponent's reply from the line automatically.
   useEffect(() => {
@@ -234,6 +238,7 @@ export function DrillTrainer({ drill }: { drill: LineDrill }) {
     setView(null)
     setSelected(null)
     setFeedback({ tone: 'info', text: 'Your move.' })
+    timer.reset()
   }
 
   function showHint() {
@@ -343,6 +348,7 @@ export function DrillTrainer({ drill }: { drill: LineDrill }) {
         <MoveHistory fen={drill.fen} moves={history} shown={shown} onShow={showMove} lineEnd={sparring?.length ? ply : undefined} nav={!phone} />
         {!phone && <div className="actions">{actions}</div>}
       </aside>
+      <DrillTimer elapsed={timer.elapsed} running={timer.running} done={finished} />
     </section>
   )
 }
