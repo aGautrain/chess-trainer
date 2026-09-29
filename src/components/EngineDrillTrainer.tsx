@@ -21,7 +21,7 @@ import { Concept, IconButton } from './PanelParts'
 import { useBoardPosition } from './useBoardPosition'
 
 /** Think time for Stockfish's moves. */
-const ENGINE_MOVETIME_MS = 1000
+const ENGINE_MOVETIME_MS = 500
 /** Think time for the hint. */
 const HINT_MOVETIME_MS = 500
 /** Search depth used to compare a shuffled position with the original. */
