@@ -14,7 +14,7 @@ import type { EngineDrill } from '../drill/types'
 import { playUci } from '../engine/moves'
 import { getAnalysisEngine, getEngine } from '../engine/stockfish'
 import type { EngineIdentity } from '../engine/uci'
-import { captureRingStyle, hintStyle, lastMoveStyle, moveDotStyle, selectedStyle } from './boardStyles'
+import { captureRingStyle, hintArrowColor, hintStyle, lastMoveStyle, moveDotStyle, selectedStyle } from './boardStyles'
 import { EvalBar } from './EvalBar'
 import { MoveHistory } from './MoveHistory'
 import { Concept, IconButton } from './PanelParts'
@@ -64,8 +64,8 @@ export function EngineDrillTrainer({ drill, progress = null, onSolved, onTarget 
   const [view, setView] = useState<number | null>(null)
   /** Whether the player went back and played a different move this run, which keeps a win out of their best. */
   const [tookBack, setTookBack] = useState(false)
-  /** The square of the piece Stockfish would move, for the position it was asked about. */
-  const [hint, setHint] = useState<{ fen: string; square: string } | null>(null)
+  /** Stockfish's best move for the position it was asked about; a second hint shows it as an arrow. */
+  const [hint, setHint] = useState<{ fen: string; move: string; arrow: boolean } | null>(null)
   const [engineError, setEngineError] = useState(false)
   const [selected, setSelected] = useState<string | null>(null)
   const [identity, setIdentity] = useState<EngineIdentity | null>(null)
@@ -117,7 +117,7 @@ export function EngineDrillTrainer({ drill, progress = null, onSolved, onTarget 
   const keepsBest = tracksBest(drill) && (!drill.randomize || hasTarget(drill))
   /** Completed, the best result so far, or nothing when the drill was never solved. */
   const best = summarize(progress)
-  const hintSquare = hint?.fen === fen ? hint.square : null
+  const shownHint = hint?.fen === fen ? hint : null
   const targets = useMemo(() => (selected && playerToMove ? legalTargets(fen, selected) : []), [fen, selected, playerToMove])
 
   useEffect(() => {
@@ -274,12 +274,17 @@ export function EngineDrillTrainer({ drill, progress = null, onSolved, onTarget 
   }
 
   function showHint() {
+    // The first hint marks the piece to move; the second draws the whole move.
+    if (shownHint) {
+      setHint({ ...shownHint, arrow: true })
+      return
+    }
     const runId = run.current
     const hintFen = fen
     getEngine()
       .search(hintFen, { movetime: HINT_MOVETIME_MS })
       .then(({ bestMove }) => {
-        if (runId === run.current && bestMove) setHint({ fen: hintFen, square: bestMove.slice(0, 2) })
+        if (runId === run.current && bestMove) setHint({ fen: hintFen, move: bestMove, arrow: false })
       })
       .catch(() => runId === run.current && setEngineError(true))
   }
@@ -321,7 +326,10 @@ export function EngineDrillTrainer({ drill, progress = null, onSolved, onTarget 
     squareStyles[lastMove.from] = lastMoveStyle
     squareStyles[lastMove.to] = lastMoveStyle
   }
-  if (hintSquare && playerToMove) squareStyles[hintSquare] = { ...squareStyles[hintSquare], ...hintStyle }
+  const hintFrom = shownHint?.move.slice(0, 2)
+  if (hintFrom && playerToMove) squareStyles[hintFrom] = { ...squareStyles[hintFrom], ...hintStyle }
+  const arrows =
+    shownHint?.arrow && playerToMove ? [{ startSquare: shownHint.move.slice(0, 2), endSquare: shownHint.move.slice(2, 4), color: hintArrowColor }] : []
   if (selected && playerToMove) {
     squareStyles[selected] = { ...squareStyles[selected], ...selectedStyle }
     for (const { to, capture } of targets) squareStyles[to] = { ...squareStyles[to], ...(capture ? captureRingStyle : moveDotStyle) }
@@ -346,6 +354,7 @@ export function EngineDrillTrainer({ drill, progress = null, onSolved, onTarget 
                 canDragPiece: ({ square }) => square !== null && selectable(square),
                 allowDragging: playerToMove,
                 squareStyles,
+                arrows,
               }}
             />
             {showResult && (
@@ -428,7 +437,11 @@ export function EngineDrillTrainer({ drill, progress = null, onSolved, onTarget 
         </dl>
         <MoveHistory fen={startFen ?? drill.fen} moves={moves} shown={shown} onShow={showMove} />
         <div className="actions">
-          <IconButton label="Hint" onClick={showHint} disabled={!playerToMove || engineError || hint?.fen === fen}>
+          <IconButton
+            label={shownHint ? 'Show best move' : 'Hint'}
+            onClick={showHint}
+            disabled={!playerToMove || engineError || !!shownHint?.arrow}
+          >
             <Lightbulb aria-hidden size={20} />
           </IconButton>
           <IconButton label="Restart" onClick={restart}>
