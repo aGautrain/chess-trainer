@@ -3,6 +3,12 @@ import { parseBestMove, parseIdentity, parseInfo, type EngineIdentity, type Info
 /** The vendored Stockfish build in public/engine, see its README. */
 export const ENGINE_URL = `${import.meta.env.BASE_URL}engine/stockfish-19-lite-single.js`
 
+/**
+ * Transposition table size of each engine, in MB. Stockfish's default of 16 MB is already enough for a move search of
+ * a second or less, but the 10 s mate-target search fills it; 64 MB stays small next to the browser's memory.
+ */
+export const HASH_MB = 64
+
 export interface SearchLimits {
   /** Fixed search depth. */
   depth?: number
@@ -28,6 +34,11 @@ export interface EngineWorker {
 
 type LineListener = (line: string) => void
 
+export interface EngineOptions {
+  /** Transposition table size in MB. */
+  hash?: number
+}
+
 /**
  * Stockfish running in a Web Worker, driven over UCI.
  * Searches are queued so callers never interleave `position`/`go` commands.
@@ -39,7 +50,7 @@ export class StockfishEngine {
   private readonly ready: Promise<void>
   private identity: EngineIdentity = { name: 'Unknown engine', options: {} }
 
-  constructor(worker: EngineWorker = new Worker(ENGINE_URL) as unknown as EngineWorker) {
+  constructor(worker: EngineWorker = new Worker(ENGINE_URL) as unknown as EngineWorker, options: EngineOptions = {}) {
     this.worker = worker
     this.worker.onmessage = (event) => {
       const text = typeof event.data === 'string' ? event.data : String(event.data)
@@ -47,7 +58,7 @@ export class StockfishEngine {
         if (line) for (const listener of [...this.listeners]) listener(line)
       }
     }
-    this.ready = this.handshake()
+    this.ready = this.start(options)
     this.worker.onerror = () => {
       for (const listener of [...this.listeners]) listener('error')
     }
@@ -67,6 +78,13 @@ export class StockfishEngine {
       this.listeners.add(listener)
       for (const command of send) this.worker.postMessage(command)
     })
+  }
+
+  private async start({ hash }: EngineOptions): Promise<void> {
+    await this.handshake()
+    if (!hash) return
+    await this.waitFor((line) => line === 'readyok', [`setoption name Hash value ${hash}`, 'isready'])
+    this.identity.options.Hash = String(hash)
   }
 
   private async handshake(): Promise<void> {
@@ -159,7 +177,7 @@ let shared: StockfishEngine | null = null
 
 /** One engine for the whole app; the worker and its WASM load on first use. */
 export function getEngine(): StockfishEngine {
-  shared ??= new StockfishEngine()
+  shared ??= new StockfishEngine(undefined, { hash: HASH_MB })
   return shared
 }
 
@@ -167,6 +185,6 @@ let analysis: StockfishEngine | null = null
 
 /** A second engine for long background searches, so they never hold up the moves of the game being played. */
 export function getAnalysisEngine(): StockfishEngine {
-  analysis ??= new StockfishEngine()
+  analysis ??= new StockfishEngine(undefined, { hash: HASH_MB })
   return analysis
 }

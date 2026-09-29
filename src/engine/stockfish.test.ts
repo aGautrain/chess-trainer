@@ -43,3 +43,13 @@ describe('StockfishEngine.search with an abort signal', () => {
     expect(worker.sent.some((c) => c.startsWith('go'))).toBe(false)
   })
 })
+
+describe('StockfishEngine options', () => {
+  it('sets the hash before the first search', async () => {
+    const worker = slowWorker()
+    const engine = new StockfishEngine(worker, { hash: 64 })
+    const { options } = await engine.describe()
+    expect(worker.sent).toContain('setoption name Hash value 64')
+    expect(options.Hash).toBe('64')
+  })
+})
