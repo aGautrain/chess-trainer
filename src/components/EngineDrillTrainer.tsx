@@ -16,8 +16,9 @@ import { getAnalysisEngine, getEngine } from '../engine/stockfish'
 import type { EngineIdentity } from '../engine/uci'
 import { captureRingStyle, hintArrowColor, hintStyle, lastMoveStyle, moveDotStyle, selectedStyle } from './boardStyles'
 import { EvalBar } from './EvalBar'
-import { MoveHistory } from './MoveHistory'
-import { Concept, IconButton } from './PanelParts'
+import { HistoryButtons, MoveHistory } from './MoveHistory'
+import { Concept, IconButton, PanelTitle } from './PanelParts'
+import { usePhoneLayout } from '../usePhoneLayout'
 import { useBoardPosition } from './useBoardPosition'
 
 /** Think time for Stockfish's moves. */
@@ -54,6 +55,7 @@ const plural = (n: number) => `${n} move${n === 1 ? '' : 's'}`
 
 /** Plays a position out against Stockfish's best moves until the drill's goal is met or can no longer be. */
 export function EngineDrillTrainer({ drill, progress = null, onSolved, onTarget }: Props) {
+  const phone = usePhoneLayout()
   /** The position this run starts from: the drill's own, or a shuffle of it. Null while shuffling. */
   const [startFen, setStartFen] = useState<string | null>(drill.randomize ? null : drill.fen)
   /** Bumped to ask for a new shuffle. */
@@ -310,7 +312,7 @@ export function EngineDrillTrainer({ drill, progress = null, onSolved, onTarget 
     feedback = { tone: 'info', text: 'Shuffling the pieces…' }
   } else if (!live) {
     const where = shown === 0 ? 'the start position' : `move ${shown} of ${moves.length}`
-    feedback = { tone: 'info', text: `Viewing ${where}. ${playerToMove ? 'Play a move to continue from here, or' : 'Press'} → to go forward.` }
+    feedback = { tone: 'info', text: `Viewing ${where}. ${playerToMove ? 'Play a move to continue from here, or' : phone ? 'Tap' : 'Press'} ${phone ? '›' : '→'} to go forward.` }
   } else if (status.state !== 'playing') {
     feedback = { tone: status.state === 'won' ? 'done' : 'bad', text: status.reason }
   } else if (engineError) {
@@ -335,72 +337,97 @@ export function EngineDrillTrainer({ drill, progress = null, onSolved, onTarget 
     for (const { to, capture } of targets) squareStyles[to] = { ...squareStyles[to], ...(capture ? captureRingStyle : moveDotStyle) }
   }
 
+  // Hint and Restart sit in the panel, or on phones right under the board with the move arrows, bigger and labelled.
+  const actions = (
+    <>
+      <IconButton
+        labelled={phone}
+        label={shownHint ? 'Show best move' : 'Hint'}
+        onClick={showHint}
+        disabled={!playerToMove || engineError || !!shownHint?.arrow}
+      >
+        <Lightbulb aria-hidden size={20} />
+      </IconButton>
+      <IconButton labelled={phone} label="Restart" onClick={restart}>
+        <RotateCcw aria-hidden size={20} />
+      </IconButton>
+    </>
+  )
+
   return (
     <section className="trainer">
-      <div className="board-area">
-        <EvalBar fen={fen} orientation={drill.playerColor} />
-        <div className="board">
-          <div className="board-frame">
-            <Chessboard
-              options={{
-                ...boardTheme,
-                id: drill.id,
-                position,
-                boardOrientation: drill.playerColor,
-                onPieceDrag,
-                onPieceDrop,
-                onPieceDragCancel: () => setSelected(null),
-                onSquareClick,
-                canDragPiece: ({ square }) => square !== null && selectable(square),
-                allowDragging: playerToMove,
-                squareStyles,
-                arrows,
-              }}
-            />
-            {showResult && (
-              <div className="result-backdrop" onClick={() => setDismissed(gameKey)} data-testid="result-backdrop">
-                <div
-                  className={`result result-${status.state}`}
-                  role="dialog"
-                  aria-labelledby="result-title"
-                  data-testid="result"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <button type="button" className="result-close" aria-label="Close" title="Close" onClick={() => setDismissed(gameKey)}>
-                    <X aria-hidden size={18} />
-                  </button>
-                  <h2 id="result-title">{status.state === 'won' ? 'Win!' : 'Lost'}</h2>
-                  <p className="description">{status.reason}</p>
-                  {solved && tookBack && tracksBest(drill) && (
-                    <p className="description" data-testid="took-back">
-                      You took moves back, so this win does not count toward your best.
-                    </p>
-                  )}
-                  <dl className="stats">
-                    {typeof runTarget === 'number' && (
-                      <>
-                        <dt>Target</dt>
-                        <dd>{plural(runTarget)}</dd>
-                      </>
+      <div className="board-column">
+        <div className="board-area">
+          <EvalBar fen={fen} orientation={drill.playerColor} />
+          <div className="board">
+            <div className="board-frame">
+              <Chessboard
+                options={{
+                  ...boardTheme,
+                  id: drill.id,
+                  position,
+                  boardOrientation: drill.playerColor,
+                  onPieceDrag,
+                  onPieceDrop,
+                  onPieceDragCancel: () => setSelected(null),
+                  onSquareClick,
+                  canDragPiece: ({ square }) => square !== null && selectable(square),
+                  allowDragging: playerToMove,
+                  squareStyles,
+                  arrows,
+                }}
+              />
+              {showResult && (
+                <div className="result-backdrop" onClick={() => setDismissed(gameKey)} data-testid="result-backdrop">
+                  <div
+                    className={`result result-${status.state}`}
+                    role="dialog"
+                    aria-labelledby="result-title"
+                    data-testid="result"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <button type="button" className="result-close" aria-label="Close" title="Close" onClick={() => setDismissed(gameKey)}>
+                      <X aria-hidden size={18} />
+                    </button>
+                    <h2 id="result-title">{status.state === 'won' ? 'Win!' : 'Lost'}</h2>
+                    <p className="description">{status.reason}</p>
+                    {solved && tookBack && tracksBest(drill) && (
+                      <p className="description" data-testid="took-back">
+                        You took moves back, so this win does not count toward your best.
+                      </p>
                     )}
-                    <dt>Your moves</dt>
-                    <dd>{playerMoves}</dd>
-                  </dl>
-                  <button type="button" className="primary retry" onClick={restart}>
-                    <RotateCcw aria-hidden size={18} />
-                    Retry
-                  </button>
+                    <dl className="stats">
+                      {typeof runTarget === 'number' && (
+                        <>
+                          <dt>Target</dt>
+                          <dd>{plural(runTarget)}</dd>
+                        </>
+                      )}
+                      <dt>Your moves</dt>
+                      <dd>{playerMoves}</dd>
+                    </dl>
+                    <button type="button" className="primary retry" onClick={restart}>
+                      <RotateCcw aria-hidden size={18} />
+                      Retry
+                    </button>
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
+            <p className="engine-params" data-testid="engine-params">
+              {engineParams(identity, lastDepth)}
+            </p>
           </div>
-          <p className="engine-params" data-testid="engine-params">
-            {engineParams(identity, lastDepth)}
-          </p>
         </div>
+        {phone && (
+          <div className="board-controls">
+            <HistoryButtons shown={shown} total={moves.length} onShow={showMove} size={22} />
+            {actions}
+          </div>
+        )}
       </div>
       <aside className="panel">
-        <h2>{drill.name}</h2>
+        <PanelTitle name={drill.name} phone={phone} />
         <Concept text={drill.description} />
         <p className={`feedback feedback-${feedback.tone}`} role="status" data-testid="feedback">
           {feedback.text}
@@ -413,9 +440,13 @@ export function EngineDrillTrainer({ drill, progress = null, onSolved, onTarget 
               <dt>Target</dt>
               <dd data-testid="target">
                 {shuffling || runTarget === undefined
-                  ? 'Stockfish is looking for the shortest mate…'
+                  ? phone
+                    ? 'Searching…'
+                    : 'Stockfish is looking for the shortest mate…'
                   : runTarget === null
-                    ? 'Stockfish found no forced mate to count'
+                    ? phone
+                      ? 'No forced mate'
+                      : 'Stockfish found no forced mate to count'
                     : `Mate in ${plural(runTarget)}`}
               </dd>
             </>
@@ -435,19 +466,8 @@ export function EngineDrillTrainer({ drill, progress = null, onSolved, onTarget 
             </>
           )}
         </dl>
-        <MoveHistory fen={startFen ?? drill.fen} moves={moves} shown={shown} onShow={showMove} />
-        <div className="actions">
-          <IconButton
-            label={shownHint ? 'Show best move' : 'Hint'}
-            onClick={showHint}
-            disabled={!playerToMove || engineError || !!shownHint?.arrow}
-          >
-            <Lightbulb aria-hidden size={20} />
-          </IconButton>
-          <IconButton label="Restart" onClick={restart}>
-            <RotateCcw aria-hidden size={20} />
-          </IconButton>
-        </div>
+        <MoveHistory fen={startFen ?? drill.fen} moves={moves} shown={shown} onShow={showMove} nav={!phone} />
+        {!phone && <div className="actions">{actions}</div>}
       </aside>
     </section>
   )

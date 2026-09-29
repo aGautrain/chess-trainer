@@ -12,8 +12,9 @@ import { getEngine } from '../engine/stockfish'
 import { formatScore } from '../engine/uci'
 import { captureRingStyle, hintArrowColor, hintStyle, lastMoveStyle, moveDotStyle, selectedStyle } from './boardStyles'
 import { EvalBar } from './EvalBar'
-import { MoveHistory } from './MoveHistory'
-import { Concept, IconButton } from './PanelParts'
+import { HistoryButtons, MoveHistory } from './MoveHistory'
+import { Concept, IconButton, PanelTitle } from './PanelParts'
+import { usePhoneLayout } from '../usePhoneLayout'
 import { useBoardPosition } from './useBoardPosition'
 
 const OPPONENT_DELAY_MS = 400
@@ -38,6 +39,7 @@ function describe(san: string, judgement: MoveJudgement, fenBefore: string): str
 }
 
 export function DrillTrainer({ drill }: { drill: LineDrill }) {
+  const phone = usePhoneLayout()
   const [ply, setPly] = useState(0)
   const [mistakes, setMistakes] = useState(0)
   /** 0 without a hint, 1 marks the piece to move, 2 also draws the move as an arrow. */
@@ -249,7 +251,7 @@ export function DrillTrainer({ drill }: { drill: LineDrill }) {
   let shownFeedback: Feedback = feedback
   if (!live && feedbackView !== view) {
     const where = shown === 0 ? 'the start position' : `move ${shown} of ${history.length}`
-    shownFeedback = { tone: 'info', text: `Viewing ${where}. ${playerToMove ? 'Play a move to continue from here, or' : 'Press'} → to go forward.` }
+    shownFeedback = { tone: 'info', text: `Viewing ${where}. ${playerToMove ? 'Play a move to continue from here, or' : phone ? 'Tap' : 'Press'} ${phone ? '›' : '→'} to go forward.` }
   } else if (finished && sparring === null) {
     const summary =
       mistakes === 0 ? 'Line complete with no mistakes!' : `Line complete with ${mistakes} mistake${mistakes === 1 ? '' : 's'}.`
@@ -274,31 +276,57 @@ export function DrillTrainer({ drill }: { drill: LineDrill }) {
     for (const { to, capture } of targets) squareStyles[to] = { ...squareStyles[to], ...(capture ? captureRingStyle : moveDotStyle) }
   }
 
+  // Hint and Restart sit in the panel, or on phones right under the board with the move arrows, bigger and labelled.
+  const actions = (
+    <>
+      {finished && sparring === null ? (
+        <button type="button" onClick={() => setSparring([])} disabled={!live || gameOver}>
+          Play on vs Stockfish
+        </button>
+      ) : (
+        <IconButton labelled={phone} label={hint ? 'Show best move' : 'Hint'} onClick={showHint} disabled={expected === null || !playerToMove || hint === 2}>
+          <Lightbulb aria-hidden size={20} />
+        </IconButton>
+      )}
+      <IconButton labelled={phone} label="Restart" onClick={restart}>
+        <RotateCcw aria-hidden size={20} />
+      </IconButton>
+    </>
+  )
+
   return (
     <section className="trainer">
-      <div className="board-area">
-        <EvalBar fen={fen} orientation={drill.playerColor} />
-        <div className="board">
-          <Chessboard
-            options={{
-              ...boardTheme,
-              id: drill.id,
-              position,
-              boardOrientation: drill.playerColor,
-              onPieceDrag,
-              onPieceDrop,
-              onPieceDragCancel: () => setSelected(null),
-              onSquareClick,
-              canDragPiece: ({ square }) => square !== null && selectable(square),
-              allowDragging: playerToMove,
-              squareStyles,
-              arrows,
-            }}
-          />
+      <div className="board-column">
+        <div className="board-area">
+          <EvalBar fen={fen} orientation={drill.playerColor} />
+          <div className="board">
+            <Chessboard
+              options={{
+                ...boardTheme,
+                id: drill.id,
+                position,
+                boardOrientation: drill.playerColor,
+                onPieceDrag,
+                onPieceDrop,
+                onPieceDragCancel: () => setSelected(null),
+                onSquareClick,
+                canDragPiece: ({ square }) => square !== null && selectable(square),
+                allowDragging: playerToMove,
+                squareStyles,
+                arrows,
+              }}
+            />
+          </div>
         </div>
+        {phone && (
+          <div className="board-controls">
+            <HistoryButtons shown={shown} total={history.length} onShow={showMove} size={22} />
+            {actions}
+          </div>
+        )}
       </div>
       <aside className="panel">
-        <h2>{drill.name}</h2>
+        <PanelTitle name={drill.name} phone={phone} />
         <Concept text={drill.description} />
         <p className={`feedback feedback-${shownFeedback.tone}`} role="status" data-testid="feedback">
           {shownFeedback.text}
@@ -312,21 +340,8 @@ export function DrillTrainer({ drill }: { drill: LineDrill }) {
           <dt>Mistakes</dt>
           <dd data-testid="mistakes">{mistakes}</dd>
         </dl>
-        <MoveHistory fen={drill.fen} moves={history} shown={shown} onShow={showMove} lineEnd={sparring?.length ? ply : undefined} />
-        <div className="actions">
-          {finished && sparring === null ? (
-            <button type="button" onClick={() => setSparring([])} disabled={!live || gameOver}>
-              Play on vs Stockfish
-            </button>
-          ) : (
-            <IconButton label={hint ? 'Show best move' : 'Hint'} onClick={showHint} disabled={expected === null || !playerToMove || hint === 2}>
-              <Lightbulb aria-hidden size={20} />
-            </IconButton>
-          )}
-          <IconButton label="Restart" onClick={restart}>
-            <RotateCcw aria-hidden size={20} />
-          </IconButton>
-        </div>
+        <MoveHistory fen={drill.fen} moves={history} shown={shown} onShow={showMove} lineEnd={sparring?.length ? ply : undefined} nav={!phone} />
+        {!phone && <div className="actions">{actions}</div>}
       </aside>
     </section>
   )

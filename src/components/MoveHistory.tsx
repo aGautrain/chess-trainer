@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { numberMoves, stepHistory, type HistoryKey } from '../drill/history'
 import { IconButton } from './PanelParts'
@@ -15,11 +15,22 @@ interface Props {
   onShow: (shown: number) => void
   /** Index of the first move played after the drill line, marked with a bar. */
   lineEnd?: number
+  /** Show the back and forward buttons here; off when they sit under the board instead. */
+  nav?: boolean
 }
 
 /** The moves played so far, each clickable, with back and forward buttons. The arrow keys step through them too. */
-export function MoveHistory({ fen, moves, shown, onShow, lineEnd }: Props) {
+export function MoveHistory({ fen, moves, shown, onShow, lineEnd, nav = true }: Props) {
   const total = moves.length
+  const list = useRef<HTMLParagraphElement>(null)
+
+  // On phones the list is one line that scrolls sideways: keep the shown move in view, without moving the page.
+  useEffect(() => {
+    const el = list.current
+    const current = el?.querySelector<HTMLElement>('[aria-current]')
+    if (!el || el.scrollWidth <= el.clientWidth) return
+    el.scrollLeft = current ? current.offsetLeft - el.offsetLeft - el.clientWidth / 2 : 0
+  }, [shown, total])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -36,7 +47,7 @@ export function MoveHistory({ fen, moves, shown, onShow, lineEnd }: Props) {
 
   return (
     <>
-      <p className="moves" data-testid="moves">
+      <p ref={list} className={total === 0 ? 'moves moves-empty' : 'moves'} data-testid="moves">
         {total === 0
           ? 'No moves played yet.'
           : numberMoves(fen, moves).map(({ san, number }, i) => (
@@ -55,14 +66,25 @@ export function MoveHistory({ fen, moves, shown, onShow, lineEnd }: Props) {
               </span>
             ))}
       </p>
-      <div className="history-nav">
-        <IconButton label="Previous move (←)" onClick={() => onShow(shown - 1)} disabled={shown === 0}>
-          <ChevronLeft aria-hidden size={18} />
-        </IconButton>
-        <IconButton label="Next move (→)" onClick={() => onShow(shown + 1)} disabled={shown === total}>
-          <ChevronRight aria-hidden size={18} />
-        </IconButton>
-      </div>
+      {nav && (
+        <div className="history-nav">
+          <HistoryButtons shown={shown} total={total} onShow={onShow} />
+        </div>
+      )}
+    </>
+  )
+}
+
+/** Back and forward one move. */
+export function HistoryButtons({ shown, total, onShow, size = 18 }: { shown: number; total: number; onShow: (shown: number) => void; size?: number }) {
+  return (
+    <>
+      <IconButton label="Previous move (←)" onClick={() => onShow(shown - 1)} disabled={shown === 0}>
+        <ChevronLeft aria-hidden size={size} />
+      </IconButton>
+      <IconButton label="Next move (→)" onClick={() => onShow(shown + 1)} disabled={shown === total}>
+        <ChevronRight aria-hidden size={size} />
+      </IconButton>
     </>
   )
 }
